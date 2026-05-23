@@ -7,14 +7,139 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ## Current Priorities
 
-1. **ISS-012** — HACS review findings (in progress — feature/iss-012-hacs-compliance)
-2. **ISS-010** — ADRs + templates done; tooling + ADR-007/008 remaining
-3. **ISS-005** — tandem_api.py coverage gap
-4. Remaining baseline findings (D-1, L-5, S-4)
+1. **ISS-260523-staleness-dead-code** — 🔴 staleness gate bypassed in prod since 2026-03-06 (temporary diag never reverted)
+2. **ISS-260523-stats-hourly-collapse** — 🔴 Tandem long-term statistics overwrite within the hour
+3. **ISS-260523-carelink-error-swallow** — 🔴 Carelink fetch errors returned as "no data"
+4. **ISS-012** — HACS review findings (in progress — feature/iss-012-hacs-compliance)
+5. **ISS-010** — ADRs + templates done; tooling + ADR-007/008 remaining
+6. **ISS-005** — tandem_api.py coverage gap
+7. Remaining baseline findings (D-1, L-5, S-4)
 
 ---
 
 ## Active
+
+### ISS-260523-staleness-dead-code — Staleness Gate Bypassed in Production
+**Type:** Correctness / Patient Safety
+**Priority:** High
+**Created:** 2026-05-23
+**Status:** 🔴 Active — decision needed
+**Source:** Blind code audit 2026-05-23
+
+`sensor.py` `available` returns `super().available` only — the documented "stale → unavailable" behavior is absent. `is_data_stale()` (`helpers.py`, 21 passing tests) is called once, at `__init__.py:1258`, purely for an INFO log line. So volatile Tandem sensors (glucose/insulin/basal/delta) display their last-known value indefinitely with no UI signal that data is stale.
+
+**Root cause (git archaeology):** PR #24 (`dcd370c`, 2026-03-06) introduced this as **explicitly temporary** — commit body: *"DIAGNOSTIC MODE — intended for a week-long HA run to verify whether the data exchange and staleness logic is behaving correctly."* The week-long run was never reverted and never tracked. It has been live ~2.5 months. Earlier the same day, `c349d47` relaxed the threshold 30 min → **6 hours** (30 min flipped sensors unavailable on normal Bluetooth/exercise gaps).
+
+The diagnostic-mode tests were renamed (`unavailable_when_stale` → `shows_last_value_when_stale`, asserting `available=True`), so the suite is green while the documented behavior is gone — code and docs disagree.
+
+**Decision required:**
+- **Restore:** re-wire `is_data_stale(self.coordinator.data)` into `available` for volatile Tandem sensors (keep timestamp/serial/model/software available). Un-rename the 3 tests. Confirm the v1.0.0 glucose-spike regression doesn't recur (the spike was a `coordinator.data` mutation bug, unrelated to availability, so should be safe).
+- **Retract:** if last-known-value is desired, delete `is_data_stale` + its 21 tests, and update README/`info.md`/CLAUDE.md to stop claiming staleness→unavailable.
+
+**Reference:** `dcd370c`, `c349d47`, `sensor.py:67-76`, `helpers.py:18`, `__init__.py:1258`
+
+### ISS-260523-stats-hourly-collapse — Tandem Long-Term Statistics Lose Intra-Hour Resolution
+**Type:** Correctness / Data
+**Priority:** High
+**Created:** 2026-05-23
+**Status:** 🔴 Active
+**Source:** Blind code audit 2026-05-23
+
+`__init__.py:2792` rounds every pump-event timestamp to the top of the hour (`ts.replace(minute=0, second=0, microsecond=0)`), then appends one `StatisticData` per event keyed on that `start`. `async_import_statistics` keys on `start`, so ~12 same-hour CGM readings overwrite each other — last-write-wins, no mean/min/max aggregation. The method docstring (`:2753`) claims "5-minute statistics entries." The **Carelink path is correct** — `_import_sg_statistics` (`__init__.py:967`) buckets to 5-minute boundaries.
+
+**Fix:** bucket Tandem events to 5-min boundaries and aggregate (mean/min/max) per bucket before import, mirroring `_import_sg_statistics`.
+
+**Reference:** `__init__.py:2790-2806` vs `__init__.py:960-970`
+
+### ISS-260523-carelink-error-swallow — Carelink Fetch Errors Masked as Empty Data
+**Type:** Correctness / Silent Failure
+**Priority:** High
+**Created:** 2026-05-23
+**Status:** 🔴 Active
+**Source:** Blind code audit 2026-05-23
+
+`api.py:178-185` `__get_data` catches `httpx.TimeoutException`, `httpx.RequestError`, and `ValueError/KeyError`, logs only via `printdbg` (DEBUG, invisible by default), and returns `None`. The caller chain (`get_recent_data` → `CarelinkCoordinator._async_update_data:686`) treats `None` as "no data" rather than a fetch failure, so a persistent API outage looks like the pump reported nothing instead of raising `UpdateFailed`. Defeats HA's retry/repair UX.
+
+**Fix:** distinguish "fetched empty" from "fetch failed"; propagate network errors so the coordinator raises `UpdateFailed` (or `ConfigEntryAuthFailed` for auth). Promote the log from `printdbg` to `_LOGGER.warning`.
+
+**Reference:** `api.py:178-185`, `__init__.py:686`
+
+### ISS-260523-claude-md-context — Project Context System (CLAUDE.md) + Scope-Drift Protocol
+**Type:** Scope Warrant / Tooling
+**Priority:** Medium
+**Created:** 2026-05-23
+**Status:** 🟢 Resolved — committed on `feature/iss-260523-governance-context` (CR-260523-governance-context)
+
+**Context:** Session 2026-05-23 added agent-context tooling to raise maturity (per Claude Code Ultimate Guide). Introducing committed `CLAUDE.md` modules is a "new filetype convention / tooling addition" — a scope-drift trigger under the operator's protocol. This warrant retroactively accepts the work already on disk and scopes the remainder.
+
+**Accepted (already written, unstaged):**
+- `CLAUDE.md` (root) — productive-altitude project rules, STOP-and-ASK list, Never-Execute-Without-Approval, path-scoped `@imports`. (Was the explicitly approved item.)
+- `custom_components/carelink/CLAUDE.md`, `tests/CLAUDE.md`, `.github/workflows/CLAUDE.md` — path-scoped modules (written without prior warrant; accepted here).
+
+**Applied 2026-05-23 (operator directed governance be written before other work):**
+- Ported the operator's scope-drift / STOP-and-ASK + scope-warrant protocol (canonical: `the-balcony/CLAUDE.md`) into root `CLAUDE.md` §"Scope Discipline — Scope Warrants": future sessions must file an accepted `ISS-YYMMDD-<topic>` warrant before triggered changes and reference `Resolves: ISS-…` in commits.
+- Captured the Claude Code Ultimate Guide context-engineering + drift-protection recommendations and the maturity roadmap (the 5 warrant items) in `docs/internal/governance-and-maturity.md` as the standing reference.
+
+**Reference:** `the-balcony/CLAUDE.md` §"Scope discipline — STOP and ASK triggers"; `gedcom-tree-parser/CLAUDE.md` §STOP-and-ASK + Scope warrants.
+
+### ISS-260523-ci-drift-check — CLAUDE.md Context-Drift CI Check
+**Type:** Tooling / CI (scope warrant)
+**Priority:** Medium
+**Created:** 2026-05-23
+**Status:** 🟢 Resolved — committed on `feature/iss-260523-governance-context` (CR-260523-governance-context)
+**Class:** GitHub Actions addition (triggered)
+
+Add `.github/workflows/context-drift.yml` adapted from the Claude Code Ultimate Guide's
+`ci-drift-check.yml`. Weekly + on-change (CLAUDE.md / `.claude/**`) checks: file size vs threshold,
+broken `@import` references, freshness; opens an issue labelled `ai-context,maintenance` on failure.
+Thresholds: `MAX_LINES=200`, `WARN_LINES=160`. SHA-pin all actions, `permissions: {}` top-level.
+**Ref:** governance-and-maturity.md §3.1.
+
+### ISS-260523-session-start-signals — Repo-Aware SessionStart Signal
+**Type:** Tooling / Hook (scope warrant)
+**Priority:** Low
+**Created:** 2026-05-23
+**Status:** 🟡 Accepted — blocked on config-repo warrant
+**Class:** hook change (triggered) — **the hook lives in the `config` repo**
+
+Extend `config/tools/focus-brief/hooks/session-start-deploy-gate.sh` to recognise this repo's
+`docs/CHANGE-REGISTER.md` (In-Review rows) and derive the handoff slug from the repo basename
+(currently hard-coded to `*-config-*.md`). The generic ISSUES.md count already works for this repo.
+**Cross-repo:** editing the shared hook is governed by the `config` repo's own scope protocol — must
+carry a `config` repo warrant before edit. Not actioned from this repo. The `/session-start` skill
+already reads this repo's ISSUES + CHANGE-REGISTER, so the functional gap is small.
+
+### ISS-260523-allowlist-prune — Global Allowlist Prune + Deny Rules + Token Rotation
+**Type:** Tooling / Security (scope warrant)
+**Priority:** High (security)
+**Created:** 2026-05-23
+**Status:** 🟢 Accepted — actioning (deny block) 2026-05-23; full prune deferred
+**Class:** global `~/.claude/settings.json` change
+
+`~/.claude/settings.json` has ~700 one-off allow entries (no `deny` block) and **inlined live tokens**.
+Actions: (1) add Layer-1 `deny` for secret file globs [actioning now — additive, safe]; (2) advise the
+operator which tokens are leaked for rotation [doing now]; (3) generalise ~700 allow entries → ~50 verbs
+[deferred — removing relied-upon allows degrades UX, propose as reviewed diff, not blind apply].
+**Ref:** governance-and-maturity.md §3.3.
+
+### ISS-260523-v2-domain-rename — v2.0: carelink → tandem_source + Remove Legacy Medtronic
+**Type:** Migration / Breaking (scope warrant)
+**Priority:** High
+**Created:** 2026-05-23
+**Status:** 🔵 Logged — NOT actioned (operator deferred; ADR required before work)
+**Class:** manifest `domain` change (catastrophic) + legacy removal — needs an ADR
+
+HACS default rejects PR #6316 because `domain: carelink` collides with upstream
+`yo-han/Home-Assistant-Carelink` (already in the default store; owns `custom_integrations/carelink`
+in home-assistant/brands). Fix = rename domain `carelink` → `tandem_source`, rename
+`custom_components/carelink/` → `custom_components/tandem_source/`, remove the legacy Medtronic path
+(`api.py` `CarelinkClient`, `CarelinkCoordinator`, Carelink config-flow step, `SENSORS`,
+`nightscout_uploader` if Carelink-only), submit a home-assistant/brands PR for `tandem_source`, write a
+user migration guide (remove/re-add; entity history preserved via entity_id reuse), bump 2.0.0,
+CHANGELOG breaking-change note, and an ADR for the domain-identity decision.
+**Blast-radius mapping started:** `const.py:27` `DOMAIN`; `__init__.py:25,354,376,657` (Carelink);
+`config_flow.py` dual-platform steps (`:122-137,189,261`); nightscout wired at `__init__.py:372,595`.
+**Do not start without the ADR and operator go-ahead.**
 
 ### ISS-012 — HACS Review Findings
 **Type:** Quality / HACS Compliance
@@ -147,6 +272,22 @@ Upstream review of yo-han/Home-Assistant-Carelink (17 commits since fork point `
 ---
 
 ## Backlog
+
+### ISS-260523-audit-moderates — Code/Test Audit: Moderate Findings (rollup)
+**Type:** Quality / Maintainability
+**Priority:** Medium
+**Created:** 2026-05-23
+**Status:** 🟡 Backlog
+**Source:** Blind code audit 2026-05-23
+
+Rollup of moderate findings; promote individual items as worked.
+- **Decoder tests are encoder-derived round-trips.** `test_expanded_data.py` packs events with the same offsets the decoder reads back — structurally cannot catch a wrong-offset regression (the `CartridgeFilled` bug class). Only real fixture is Carelink JSON. **Fix:** commit ≥1 sanitized real Tandem pump-events blob as a golden fixture and assert decoded values. (Decoder confirmed memory-safe: `tandem_api.py:126` length guard, in-bounds offsets, truncated/invalid-base64 paths tested.)
+- **`__init__.py` is a 2,972-line god module** — two coordinators + services + file I/O + 700-line `_parse_pump_events` (1466-2170). Extraction to `tandem_coordinator.py` already noted as debt; audit confirms real cost (parser is where the offset regression lived).
+- **`setdefault` on Carelink `recent_data`** (`__init__.py:715-721`) — on the input dict not `coordinator.data`, so doesn't trip the banned regression, but order-dependent correctness shared with the nightscout uploader.
+- **40+ broad `except Exception`** in `__init__.py` — most appropriate (per-stat isolation); a few swallow therapy-parse errors into silent "no data" (e.g. `:1217-1228`).
+- **Minor cleanup:** coordinator duplication (metadata extraction, recorder-import boilerplate); legacy cruft in `api.py` (dead `VERSION="0.4"`, `__main__` CLI block, duplicate `printdbg`); confirm `nightscout_uploader.py` coverage.
+
+---
 
 ### ISS-005 — `tandem_api.py` Coverage at 47% (below 80% file-level)
 **Type:** Quality / Testing

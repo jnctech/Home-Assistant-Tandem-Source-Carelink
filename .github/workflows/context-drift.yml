@@ -1,0 +1,129 @@
+name: Context Drift Check
+
+# Detects structural degradation in CLAUDE.md (root + path-scoped modules).
+# Adapted from the Claude Code Ultimate Guide ci-drift-check.yml.
+# Warrant: ISS-260523-ci-drift-check. Self-contained (gh CLI, no extra actions).
+#
+# Checks: root CLAUDE.md size vs threshold, broken @import references,
+# freshness (days since last commit). Opens/updates an issue on failure.
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Mondays 09:00 UTC
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'CLAUDE.md'
+      - 'custom_components/carelink/CLAUDE.md'
+      - 'tests/CLAUDE.md'
+      - '.github/workflows/CLAUDE.md'
+
+permissions: {}
+
+env:
+  CLAUDE_MD_MAX_LINES: '200'
+  CLAUDE_MD_WARN_LINES: '160'
+
+jobs:
+  drift-check:
+    name: Check CLAUDE.md for drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+
+      - name: Check size, imports, freshness
+        id: check
+        run: |
+          set -euo pipefail
+          FILE="CLAUDE.md"
+          PROBLEMS=0
+          REPORT=""
+
+          if [ ! -f "$FILE" ]; then
+            echo "::error::CLAUDE.md not found at repo root"
+            echo "problems=1" >> "$GITHUB_OUTPUT"
+            echo "report=Root CLAUDE.md is missing." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # --- size ---
+          LINES=$(wc -l < "$FILE" | tr -d ' ')
+          if [ "$LINES" -gt "$CLAUDE_MD_MAX_LINES" ]; then
+            echo "::error::CLAUDE.md $LINES lines (max $CLAUDE_MD_MAX_LINES) — modularize via @imports"
+            REPORT="${REPORT}- Size: ${LINES} lines (over max ${CLAUDE_MD_MAX_LINES})\n"
+            PROBLEMS=$((PROBLEMS + 1))
+          elif [ "$LINES" -gt "$CLAUDE_MD_WARN_LINES" ]; then
+            echo "::warning::CLAUDE.md $LINES lines (warn ${CLAUDE_MD_WARN_LINES})"
+            REPORT="${REPORT}- Size: ${LINES} lines (warn threshold ${CLAUDE_MD_WARN_LINES})\n"
+          fi
+
+          # --- broken @imports (root + modules) ---
+          BROKEN=0
+          for f in CLAUDE.md custom_components/carelink/CLAUDE.md tests/CLAUDE.md .github/workflows/CLAUDE.md; do
+            [ -f "$f" ] || continue
+            base=$(dirname "$f")
+            while IFS= read -r line; do
+              case "$line" in
+                @*)
+                  imp="${line#@}"
+                  # imports are repo-root-relative in this project
+                  if [ ! -f "$imp" ]; then
+                    echo "::error::Broken @import in $f: @$imp"
+                    REPORT="${REPORT}- Broken @import in ${f}: @${imp}\n"
+                    BROKEN=$((BROKEN + 1))
+                  fi
+                  ;;
+              esac
+            done < "$f"
+          done
+          PROBLEMS=$((PROBLEMS + BROKEN))
+
+          # --- freshness ---
+          LAST=$(git log -1 --format="%cd" --date=format:"%Y-%m-%d" -- "$FILE")
+          DAYS=$(( ( $(date +%s) - $(date -d "$LAST" +%s) ) / 86400 ))
+          if [ "$DAYS" -gt 90 ]; then
+            echo "::warning::CLAUDE.md last updated $DAYS days ago ($LAST)"
+            REPORT="${REPORT}- Freshness: last updated ${LAST} (${DAYS} days ago)\n"
+          fi
+
+          {
+            echo "problems=$PROBLEMS"
+            echo "lines=$LINES"
+            echo "days=$DAYS"
+            echo "last=$LAST"
+            printf 'report<<EOF\n%b\nEOF\n' "$REPORT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update issue on failure
+        if: steps.check.outputs.problems != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TITLE="Context Drift Detected — CLAUDE.md needs review"
+          BODY=$(printf 'The context drift check found **%s problem(s)** in CLAUDE.md.\n\n## Details\n- Size: %s lines\n- Last updated: %s (%s days ago)\n- Run: %s/%s/actions/runs/%s\n\n%b\n## Action\n1. Reduce size or modularize via @imports\n2. Fix broken @import references\n3. Review stale rules\n\n_Opened automatically by context-drift.yml._' \
+            "${{ steps.check.outputs.problems }}" "${{ steps.check.outputs.lines }}" "${{ steps.check.outputs.last }}" "${{ steps.check.outputs.days }}" "${{ github.server_url }}" "${{ github.repository }}" "${{ github.run_id }}" "${{ steps.check.outputs.report }}")
+          # ensure labels exist (idempotent)
+          gh label create ai-context --color c5def5 --description "Agent context / CLAUDE.md" 2>/dev/null || true
+          gh label create maintenance --color fef2c0 --description "Repo maintenance" 2>/dev/null || true
+          EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label ai-context --label maintenance
+          fi
+
+      - name: Final status
+        if: always()
+        run: |
+          if [ "${{ steps.check.outputs.problems }}" != "0" ]; then
+            echo "Context drift: FAILED (${{ steps.check.outputs.problems }} problems)"
+            exit 1
+          fi
+          echo "Context drift: PASSED"

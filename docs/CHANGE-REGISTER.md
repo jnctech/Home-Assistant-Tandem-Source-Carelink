@@ -4,6 +4,33 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260523-governance-context — Agent Governance + Context System
+**Date:** 2026-05-23
+**Branch:** `feature/iss-260523-governance-context`
+**Warrant:** `ISS-260523-claude-md-context`, `ISS-260523-ci-drift-check`
+**Status:** In Review
+
+### What Changed
+| Area | Change |
+|------|--------|
+| `.gitignore` | Removed the bare `CLAUDE.md` ignore (operator-authorized) so the 4 context files commit; added `carelink_diagnostics_*.json` to ignore raw pump diagnostics dumps. |
+| `CLAUDE.md` (root) | New. Productive-altitude project rules + §"Scope Discipline — Scope Warrants" (binding STOP-and-ASK + warrant-before-triggered-work, `Resolves: ISS-…`), Never-Execute-Without-Approval, path-scoped `@imports`. 125 lines. |
+| `custom_components/carelink/CLAUDE.md`, `tests/CLAUDE.md`, `.github/workflows/CLAUDE.md` | New path-scoped modules (subsystem rules loaded on demand). |
+| `docs/internal/governance-and-maturity.md` | New. Standing reference: Ultimate Guide context-engineering rules, drift-protection mechanisms, maturity warrant queue. |
+| `docs/internal/sensors-from-ha-following-PR62.md` | New. Reference snapshot of sensors observed on the HA instance after PR #62. |
+| `.github/workflows/context-drift.yml` | New. Weekly + on-change CLAUDE.md drift check (size/broken-`@import`/freshness); opens an `ai-context,maintenance` issue on failure. SHA-pinned, `permissions: {}` top-level. |
+| `docs/ISSUES.md` | Added 3 critical audit findings (ISS-260523-staleness-dead-code / -stats-hourly-collapse / -carelink-error-swallow), 1 backlog rollup, governance warrants. |
+
+### Why
+Raise tooling maturity and prevent the two drift modes that have bitten this repo: silent permanence
+(temporary changes never reverted) and mid-session scope creep. Governance written and accepted
+*before* any further tooling/code work, per operator directive and the repo's own scope protocol.
+
+### Quality Gate
+Docs/config only; no source changes. CLAUDE.md `@import`s verified resolving; root within 200-line cap.
+
+---
+
 ## CR-260316-iss-012-hacs-compliance — HACS Compliance Fixes (ISS-012)
 **Date:** 2026-03-16
 **Branch:** `feature/iss-012-hacs-compliance`

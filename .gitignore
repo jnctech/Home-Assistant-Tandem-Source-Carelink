@@ -158,7 +158,9 @@ config/**
 /utils/logindata.json
 venv
 .claude
-CLAUDE.md
+
+# Raw pump diagnostics dumps (capture_diagnostics service) — never commit
+carelink_diagnostics_*.json
 
 # Test config (may contain tokens)
 test_config/**
