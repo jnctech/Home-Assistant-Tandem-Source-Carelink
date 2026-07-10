@@ -181,6 +181,42 @@ class TestSensorAvailability:
         assert entity.available is False
 
 
+class TestDataStaleBinarySensor:
+    """Tests for the 'Data stale' health-surface binary sensor.
+
+    This is the stable-anchor rule-3 named visibility surface: it must report
+    staleness AND stay available even when the data-bearing sensors have gone
+    unavailable — otherwise the health indicator would silently hide itself.
+    """
+
+    def _make(self, coordinator_data: dict | None = None, last_update_success: bool = True):
+        from custom_components.tandem.binary_sensor import TandemDataStaleBinarySensor
+
+        coordinator = MagicMock()
+        coordinator.data = coordinator_data if coordinator_data is not None else {}
+        coordinator.last_update_success = last_update_success
+        return TandemDataStaleBinarySensor(coordinator)
+
+    def test_on_when_stale(self):
+        """is_on True when data is stale (empty/old)."""
+        assert self._make().is_on is True
+
+    def test_off_when_fresh(self):
+        """is_on False when the last reading is recent."""
+        fresh = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: datetime.now(timezone.utc)}
+        assert self._make(fresh).is_on is False
+
+    def test_available_even_when_stale(self):
+        """The health surface stays available while stale (must not self-hide)."""
+        entity = self._make()  # stale
+        assert entity.is_on is True
+        assert entity.available is True
+
+    def test_unavailable_when_coordinator_failed(self):
+        """Only a coordinator failure takes the health surface offline."""
+        assert self._make(last_update_success=False).available is False
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Tests: Coordinator maxDateWithEvents optimisation
 # ═══════════════════════════════════════════════════════════════════════════

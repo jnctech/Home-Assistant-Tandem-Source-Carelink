@@ -1,8 +1,10 @@
 """Tandem binary sensor platform.
 
-Currently a declared seam with no descriptions — the Tandem Source API exposes
-no binary-sensor-shaped fields (null-not-guess). Kept so future additions have a
-home without changing __init__ platform wiring.
+Besides the (currently empty) declarative TANDEM_BINARY_SENSORS seam, this
+platform always wires one health-surface entity: TandemDataStaleBinarySensor.
+It reports whether the pump upload has gone stale — the named, operator-visible
+"amber" that STANDARD-stable-anchor-reconciliation rule 3 (relayed) requires,
+so a silently-unavailable glucose/insulin decision-input is never invisible.
 """
 
 from __future__ import annotations
@@ -14,9 +16,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .binary_sensor_types import TANDEM_BINARY_SENSORS
+from .binary_sensor_types import DATA_STALE, TANDEM_BINARY_SENSORS
 from .const import COORDINATOR, DOMAIN
 from .entity import PARALLEL_UPDATES, TandemEntity  # noqa: F401  (PARALLEL_UPDATES re-exported for HA)
+from .helpers import is_data_stale
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +31,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Tandem binary sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
-    entities = [TandemBinarySensor(coordinator, desc) for desc in TANDEM_BINARY_SENSORS]
+    entities: list[BinarySensorEntity] = [TandemBinarySensor(coordinator, desc) for desc in TANDEM_BINARY_SENSORS]
+    entities.append(TandemDataStaleBinarySensor(coordinator))
     async_add_entities(entities)
     _LOGGER.debug("Binary sensor setup: %d entities", len(entities))
 
@@ -47,3 +51,32 @@ class TandemBinarySensor(TandemEntity, BinarySensorEntity):
         if self.coordinator.data is None:
             return False
         return self.coordinator.data.get(self.sensor_description.key) is True
+
+
+class TandemDataStaleBinarySensor(TandemEntity, BinarySensorEntity):
+    """Health surface: on when the pump upload is stale.
+
+    Always available so it can report staleness even once the data-bearing
+    sensors have themselves gone unavailable (the base's fail-visible rule would
+    otherwise hide this very indicator). device_class=problem so it renders as an
+    operator-visible amber. See STANDARD-stable-anchor-reconciliation rule 3.
+    """
+
+    def __init__(self, coordinator) -> None:
+        """Bind the fixed DATA_STALE description."""
+        super().__init__(coordinator, DATA_STALE)
+
+    @property
+    def device_class(self) -> BinarySensorDeviceClass:
+        """Return the problem device class."""
+        return BinarySensorDeviceClass.PROBLEM
+
+    @property
+    def available(self) -> bool:
+        """Always report while the coordinator is healthy (health surfaces must not self-hide)."""
+        return self.coordinator.last_update_success
+
+    @property
+    def is_on(self) -> bool:
+        """Return True when the pump data is stale (decision inputs unavailable)."""
+        return is_data_stale(self.coordinator.data)
