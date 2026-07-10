@@ -58,7 +58,7 @@ Many manufacturers add extra battery management on top of Android defaults:
 
 ### If data gaps appear
 
-Use the `carelink.import_history` action (Developer Tools → Actions) to backfill any missed statistics. The action is idempotent — running it over a range that already has partial data fills the gaps without overwriting existing values.
+Use the `tandem.import_history` action (Developer Tools → Actions) to backfill any missed statistics. The action is idempotent — running it over a range that already has partial data fills the gaps without overwriting existing values.
 
 ---
 
@@ -66,7 +66,7 @@ Use the `carelink.import_history` action (Developer Tools → Actions) to backfi
 
 ### Integration Not Appearing in HACS
 
-**Symptoms**: Can't find "Tandem t:slim Pump" or "Carelink" in HACS integration list
+**Symptoms**: Can't find "Tandem t:slim Pump" in HACS integration list
 
 **Solutions**:
 1. Ensure custom repository is added correctly:
@@ -77,19 +77,19 @@ Use the `carelink.import_history` action (Developer Tools → Actions) to backfi
 
 ### Integration Won't Load After Installation
 
-**Symptoms**: No "Carelink" option in Add Integration dialog
+**Symptoms**: No "Tandem t:slim" option in Add Integration dialog
 
 **Solutions**:
 1. Verify files are in correct location:
 ```
 config/
 └── custom_components/
-    └── carelink/
+    └── tandem/
         ├── __init__.py
         ├── manifest.json
         └── [other files]
 ```
-2. Check Home Assistant logs: Settings → System → Logs — look for errors mentioning "carelink"
+2. Check Home Assistant logs: Settings → System → Logs — look for errors mentioning "tandem"
 3. Restart Home Assistant fully (not just reload)
 
 ---
@@ -130,17 +130,12 @@ No data is lost. All entities remain under the active device. If both devices sh
 3. Check for typos in email/password
 4. MFA/2FA not supported — ensure it is disabled on your Tandem Source account
 
-**Medtronic Carelink**:
-1. Verify credentials work at https://carelink.minimed.eu
-2. MFA must be disabled
-3. Must use care partner account for pumps
-
 ### Wrong Region Selected
 
 **Symptoms**: Authentication fails, or no data appears
 
 **Solution**:
-1. Remove integration: Settings → Devices & Services → Carelink → Delete
+1. Remove integration: Settings → Devices & Services → Tandem t:slim → Delete
 2. Re-add with correct region:
    - US: source.tandemdiabetes.com
    - EU: source.eu.tandemdiabetes.com
@@ -164,47 +159,23 @@ No data is lost. All entities remain under the active device. If both devices sh
 **Expected behaviour**:
 - Integration polls every 5 minutes (configurable)
 - Not real-time — depends on pump sync frequency via the Tandem t:slim app
-- Sensors always show the **last known value** — they do not go unavailable between syncs
+- When the pump hasn't uploaded for a while (default 6 h), decision-input
+  sensors (glucose, IOB, basal) deliberately go **unavailable** rather than
+  keep showing an old value as if it were current — a safety choice, so a stale
+  reading is never mistaken for a live one. Timestamp/settings sensors stay
+  visible, and `binary_sensor.tandem_data_stale` turns **on** to flag it.
 
 **If updates are slower than expected**:
 1. Check [Mobile App Settings](#mobile-app-settings) — battery restrictions are the most common cause
 2. Enable debug logging and look for transient error messages (see [Enable Debug Logging](#enable-debug-logging))
-3. Use `carelink.import_history` to backfill any statistics gaps after fixing the app settings
+3. Use `tandem.import_history` to backfill any statistics gaps after fixing the app settings
 
 ### Missing Sensors
 
 **Symptoms**: Some expected sensors not appearing
 
-**Tandem Pumps**:
-- All 49 sensors are populated from the Tandem Source Reports API — no ControlIQ API access required
+- All sensors are populated from the Tandem Source Reports API — no ControlIQ API access required
 - If sensors are missing, check HA logs for parsing errors and ensure the pump has recent data on Tandem Source
-
-**Medtronic Pumps**:
-- Ensure pump model is supported (770G, 780G)
-- Guardian Connect CGM users may have a limited sensor set
-
----
-
-## Nightscout Integration
-
-### Nightscout Upload Not Working
-
-**Symptoms**: Data not appearing in Nightscout
-
-**Solutions**:
-
-1. **Verify Nightscout is accessible** — open Nightscout URL in browser; you should see the dashboard
-
-2. **Check API Secret**
-   - Must be at least 12 characters, case-sensitive, no spaces or special characters
-
-3. **Verify URL format**
-   - Must include protocol: `http://` or `https://`
-   - No trailing slash — example: `http://192.168.1.100:1337`
-
-4. **Network connectivity** — if HA is in Docker, use the container name: `http://nightscout:1337`
-
-5. Check Home Assistant logs for Nightscout upload errors
 
 ---
 
@@ -213,7 +184,7 @@ No data is lost. All entities remain under the active device. If both devices sh
 ### High CPU Usage
 
 **Solutions**:
-1. Increase scan interval: Settings → Devices & Services → Carelink → Configure → increase to 600 or 900 seconds
+1. Increase scan interval: Settings → Devices & Services → Tandem t:slim → Configure → increase to 600 or 900 seconds
 2. Remove debug logging if enabled
 
 ---
@@ -228,22 +199,22 @@ Add to `configuration.yaml`:
 logger:
   default: warning
   logs:
-    custom_components.carelink: debug
+    custom_components.tandem: debug
 ```
 
 Restart Home Assistant, then check logs for detailed information.
 
 ### Generate Diagnostic Report
 
-1. Settings → Devices & Services → Carelink
+1. Settings → Devices & Services → Tandem t:slim
 2. Click on device (pump)
 3. Three-dot menu → Download Diagnostics
 4. Share with support (remove sensitive data first)
 
 ### Check Integration Version
 
-1. HACS → Integrations → Carelink — version shown at bottom
-2. Or check `custom_components/carelink/manifest.json`
+1. HACS → Integrations → Tandem t:slim — version shown at bottom
+2. Or check `custom_components/tandem/manifest.json`
 
 ---
 
@@ -254,7 +225,7 @@ If issues persist:
 1. **Check existing issues**: https://github.com/jnctech/ha-tandem-pump/issues
 2. **Create new issue** — include:
    - HA version and integration version
-   - Platform (Tandem/Carelink) and region (US/EU)
+   - Region (US/EU)
    - Pump model
    - Relevant logs (remove sensitive data)
    - Diagnostic report download
