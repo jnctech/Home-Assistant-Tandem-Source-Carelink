@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests with coverage for SonarCloud
         run: >
-          pytest --cov=custom_components/carelink
+          pytest --cov=custom_components/tandem
           --cov-report=xml:coverage.xml
 
       - name: SonarQube Cloud Scan

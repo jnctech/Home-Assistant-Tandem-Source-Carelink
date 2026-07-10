@@ -33,18 +33,18 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Ruff lint
-        run: python -m ruff check custom_components/carelink tests
+        run: python -m ruff check custom_components/tandem tests
 
       - name: Ruff format check
-        run: python -m ruff format --check custom_components/carelink tests
+        run: python -m ruff format --check custom_components/tandem tests
 
       - name: Run tests
-        run: python -m pytest -v --tb=short --cov=custom_components/carelink --cov-report=term-missing
+        run: python -m pytest -v --tb=short --cov=custom_components/tandem --cov-report=term-missing
 
       - name: Bandit security scan
         run: |
           pip install bandit[toml]
-          python -m bandit -c bandit.yaml -r custom_components/carelink
+          python -m bandit -c bandit.yaml -r custom_components/tandem
 
       - name: Install Gitleaks
         run: |

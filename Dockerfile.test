@@ -18,4 +18,4 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 COPY --chown=testuser:testuser . .
 
 ENTRYPOINT ["python", "-m", "pytest"]
-CMD ["-v", "--tb=short", "--cov=custom_components/carelink", "--cov-report=term-missing"]
+CMD ["-v", "--tb=short", "--cov=custom_components/tandem", "--cov-report=term-missing"]

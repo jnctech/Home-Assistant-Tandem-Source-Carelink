@@ -1,7 +1,33 @@
 [tool.ruff]
 line-length = 120
+target-version = "py313"
 
 [tool.ruff.lint]
-# E501 (line too long) disabled — codebase predates line-length enforcement;
-# will be addressed in a dedicated cleanup pass.
+# E501 (line too long) disabled — long declarative sensor descriptions and
+# reverse-engineered API constants read better unwrapped. Enforced elsewhere.
 ignore = ["E501"]
+
+[tool.coverage.run]
+source = ["custom_components/tandem"]
+
+[tool.coverage.report]
+# Mechanical enforcement of the ≥80% new-code target (STANDARD-code-quality §1;
+# docs/quality-gates.md). Platinum aims higher; raised as coverage lands.
+fail_under = 80
+show_missing = true
+
+[tool.mypy]
+python_version = "3.13"
+# Strict typing is the Platinum target (inject-websession + async-dep already
+# met/possible). Rolled in incrementally: the small house-layout modules are
+# typed; the large research modules moved verbatim (coordinator, tandem_api)
+# are exempted below until their dedicated typing pass so the gate stays honest.
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = [
+    "custom_components.tandem.coordinator",
+    "custom_components.tandem.tandem_api",
+]
+ignore_errors = true

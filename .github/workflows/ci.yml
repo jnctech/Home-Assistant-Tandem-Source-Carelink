@@ -26,10 +26,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run ruff (lint)
-        run: ruff check custom_components/carelink tests
+        run: ruff check custom_components/tandem tests
 
       - name: Run ruff (format check)
-        run: ruff format --check custom_components/carelink tests
+        run: ruff format --check custom_components/tandem tests
 
   test:
     name: Python Tests
@@ -50,7 +50,7 @@ jobs:
       - name: Run tests with coverage
         run: >
           pytest -v --tb=short
-          --cov=custom_components/carelink
+          --cov=custom_components/tandem
           --cov-report=xml:coverage.xml
           --cov-report=term-missing
 
@@ -71,7 +71,7 @@ jobs:
         run: pip install bandit[toml]
 
       - name: Run bandit
-        run: bandit -c bandit.yaml -r custom_components/carelink
+        run: bandit -c bandit.yaml -r custom_components/tandem
 
   hassfest:
     name: Check hassfest
@@ -100,7 +100,7 @@ jobs:
           pip install pip-audit
           python -c "
           import json
-          manifest = json.load(open('custom_components/carelink/manifest.json'))
+          manifest = json.load(open('custom_components/tandem/manifest.json'))
           print('\n'.join(manifest.get('requirements', [])))
           " > /tmp/runtime-requirements.txt
           cat /tmp/runtime-requirements.txt
