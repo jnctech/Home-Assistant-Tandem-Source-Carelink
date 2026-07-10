@@ -44,6 +44,19 @@ the maintainer's mikrotik house standards, aiming HA Integration Quality Scale *
   `snapshot_platform` (patch `PLATFORMS` to one platform) + frozen clock + fixed entry_id, **paired with invariants**
   (glucose 120mg/dL/6.66mmol exact, data_stale off when fresh, fail-visible e2e when stale).
 
+## Update 2026-07-10 (later): P5 DONE, all pushed
+
+P5 landed (commits `8499962`, `d95471a`, `9bcb228`, `6aaf5f9`): strings/en.json aligned to the
+single-step flow + stale de/fr/nl/ru deleted; README/info/TROUBLESHOOTING Tandem-only + staleness
+docs corrected to fail-visible; `docs/quality-gates.md` (tier + Platinum gap); ADR-007/008/009 +
+index; CHANGE-REGISTER `CR-260710`; ADR-001 supersede note; `hacs-default-submission.md` rewritten;
+`upstream-review` deleted. **Everything is pushed** to `origin/claude/domain-codebase-refactor-fgc4fv`
+(9 commits). 373 passing, 88% cov, ruff clean.
+
+**Only P4 remains.** Minor doc residue (non-blocking): malformed `sensor.carelink_tandem_*` ids in
+`docs/plan-tandem-api-expansion.md`; a few historical carelink mentions in `docs/reviews/` and
+`ADR-003/006`; `docs/data-schema.md` provenance table not yet created.
+
 ## Remaining work
 
 ### P4 — Platinum technical rules (`manifest.quality_scale` still `bronze`)
