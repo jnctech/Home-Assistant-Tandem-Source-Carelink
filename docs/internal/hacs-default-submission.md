@@ -1,38 +1,49 @@
-# HACS Default Store Submission — PR Description
+# HACS Default Store Submission — PR body
 
-Use this as the PR body when submitting to https://github.com/hacs/default
+Use this as the PR body when submitting to https://github.com/hacs/default (category: integration).
 
 ---
 
 ## Repository
 
-`jnctech/ha-tandem-pump`
+`jnctech/ha-tandem-pump` — domain `tandem`, **Tandem t:slim Pump**.
 
-## Why this is a significant divergence from the upstream fork
+## What this integration is
 
-This repository is forked from [yo-han/Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink), a Medtronic CareLink integration. The fork adds full support for **Tandem t:slim X2 insulin pumps** via the **Tandem Source API** — an entirely different device, API, and data model.
+The only Home Assistant integration for the **Tandem t:slim X2** insulin pump. It authenticates to
+the **Tandem Source** cloud (OIDC/PKCE, US + EU regions) and surfaces CGM readings, insulin-on-board,
+Control-IQ status, pump battery, alerts, settings, and long-term statistics — no extra hardware.
 
-### What's new (not in upstream)
+## History (why the domain looks new)
 
-| Area | Detail |
-|---|---|
-| **New API client** | `tandem_api.py` (1,139 lines) — reverse-engineered binary event protocol with 30+ event type decoders. The Tandem Source API returns pump events as raw binary data (26 bytes per event), not JSON. |
-| **New coordinator** | `TandemCoordinator` (~1,900 lines) — completely separate from the original `CarelinkCoordinator`. Parses binary pump events, computes CGM statistics, tracks insulin delivery, and manages incremental state. |
-| **69 Tandem-specific sensors** | Glucose monitoring (12), insulin delivery (14), pump battery (4), alerts & alarms (3), pump status (10), pump settings (11), device info (7), plus 6 long-term statistics. None of these exist upstream. |
-| **Multi-CGM support** | Dexcom G6, G7, and FreeStyle Libre 2 — each with different binary layouts, auto-detected via event type. |
-| **636 tests** | Upstream has essentially none. Full pytest suite with pytest-homeassistant-custom-component, 80%+ coverage, SonarCloud quality gate. |
-| **CI/CD pipeline** | 14 checks per push: pytest, ruff, bandit, hassfest, HACS validation, SonarCloud, gitleaks, hadolint, actionlint, pip-audit, dependency review, OpenSSF Scorecard. |
-| **Services** | `import_history` (backfill months of LTS data), `capture_diagnostics` (API schema discovery). |
-| **Documentation** | 6 ADRs, API binary event reference, upstream review, troubleshooting guide. |
+This repository began as a fork of [yo-han/Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink)
+(Medtronic CareLink). A prior submission under the `carelink` domain was **rejected** — the domain did
+not match the integration's purpose, and it still carried a Medtronic path and a Nightscout uploader.
 
-### What's shared with upstream
+**v1.0.0 is a greenfield, Tandem-only rewrite** (see `docs/decisions/ADR-007`): the Medtronic and
+Nightscout code is removed, the domain is `tandem`, and the integration is restructured to the modern
+HA layout (thin `__init__.py` + `coordinator.py` + `entity.py` + declarative `*_types.py` +
+`diagnostics.py`). It is a single-purpose integration for one device family.
 
-The original Medtronic CareLink coordinator (`CarelinkCoordinator`, ~375 lines) and the config flow are retained — the integration supports both Medtronic and Tandem pumps. The Medtronic path is planned for deprecation in v2.0.
+## HACS / hassfest compliance
 
-### Upstream activity
+- `custom_components/tandem/manifest.json` — `domain`, `name`, `version` (1.0.0), `documentation`,
+  `issue_tracker`, `codeowners`, `config_flow: true`, `iot_class: cloud_polling`, `quality_scale`.
+- `hacs.json` at repo root; `info.md` rendered in HACS.
+- Config flow (single step) + reauth + reconfigure; diagnostics; a data-stale health binary_sensor.
+- Brand assets: submit `icon.png` / `logo.png` to [home-assistant/brands](https://github.com/home-assistant/brands)
+  under `custom_integrations/tandem/` (required for the default store).
 
-The upstream repository ([yo-han/Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink)) has had minimal updates. This fork has 120+ commits of new development since the fork point.
+## Engineering
 
-### Summary
+- 370+ tests (`pytest` + `pytest-homeassistant-custom-component`), 88% coverage, syrupy entity-goldens.
+- Ruff (lint+format), Bandit, gitleaks, hassfest + HACS validation, SonarCloud, OpenSSF Scorecard in CI.
+- Reverse-engineered Tandem Source binary event protocol (30+ event decoders); multi-CGM (Dexcom G6/G7,
+  Libre 2). See `docs/internal/tandem-source-api-binary-events.md`.
+- Quality tier + Platinum gap tracked in `docs/quality-gates.md`.
 
-This is not a minor fork — it's a new integration for a different insulin pump platform that happens to share the `carelink` domain for backwards compatibility. The Tandem Source API, binary event decoder, coordinator, sensors, tests, and CI pipeline are all original work.
+## Pre-submission checklist
+
+- [ ] Brand assets merged in `home-assistant/brands` for domain `tandem`.
+- [ ] A tagged GitHub release exists (HACS installs from releases).
+- [ ] `hassfest` + `hacs/action` green on the default branch.

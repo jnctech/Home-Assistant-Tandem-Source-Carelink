@@ -4,6 +4,33 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260710-greenfield-tandem-v1 — Greenfield Tandem-only V1 (domain carelink → tandem)
+**Date:** 2026-07-10
+**Branch:** `claude/domain-codebase-refactor-fgc4fv`
+**Status:** In Review
+
+### What changed
+| Area | Change |
+|------|--------|
+| domain | `carelink` → `tandem`; `manifest.version` 1.6.0 → 1.0.0; `ConfigFlow VERSION 1`. Clean break, no migration (ADR-007). |
+| scope | Removed the Medtronic CareLink path (`api.py`, `CarelinkCoordinator`) and the Nightscout uploader. Tandem t:slim only. |
+| structure | House layout: thin `__init__.py` + `coordinator.py` + `entity.py` + `sensor_types.py`/`binary_sensor_types.py` + `diagnostics.py` + `exceptions.py` + `util.py`. Research (decoders, sensor maps, region auth) moved verbatim. |
+| safety | Fail-visible staleness — stale decision-input sensors go unavailable; new `binary_sensor.tandem_data_stale` health surface (ADR-008; STANDARD-stable-anchor rule 3). |
+| tests | Deleted carelink/nightscout suites; retargeted Tandem suite; added syrupy entity-goldens + invariants (ADR-009). 373 passing, 88% coverage. |
+| toolchain | HA 2026.2 / Python 3.13; `pyproject.toml` coverage gate (80%) + mypy config; CI paths `carelink → tandem`. |
+| docs/i18n | strings/en.json aligned to the single-step flow (nightscout/carelink fields removed); stale de/fr/nl/ru translations removed; README/info/TROUBLESHOOTING made Tandem-only; `docs/quality-gates.md` added (tier + Platinum gap). |
+
+### Why
+HACS default store rejected the `carelink`-domain submission (mismatched domain, Medtronic +
+Nightscout baggage). This re-bases the proven Tandem research as a coherent, single-purpose
+integration aiming HA Quality Scale Platinum.
+
+### Follow-ups (not in this change)
+inject-websession, strict-typing pass (coordinator/tandem_api), `runtime_data` migration,
+entity translations — tracked in `docs/quality-gates.md` and the resume note.
+
+---
+
 ## CR-260316-iss-012-hacs-compliance — HACS Compliance Fixes (ISS-012)
 **Date:** 2026-03-16
 **Branch:** `feature/iss-012-hacs-compliance`
