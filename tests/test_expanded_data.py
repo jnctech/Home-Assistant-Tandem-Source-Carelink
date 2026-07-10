@@ -7,10 +7,11 @@ import base64
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
     TANDEM_CLIENT,
     PLATFORM_TYPE,
@@ -68,7 +69,7 @@ from custom_components.carelink.const import (
     TANDEM_SENSOR_KEY_ESTIMATED_INSULIN_REMAINING,
 )
 
-from custom_components.carelink.tandem_api import decode_pump_events
+from custom_components.tandem.tandem_api import decode_pump_events
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ def _make_pump_events_data(pump_events: list[dict]) -> dict:
 
 
 async def _setup_coordinator(hass: HomeAssistant, mock_data: dict):
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -261,6 +262,7 @@ async def _setup_coordinator(hass: HomeAssistant, mock_data: dict):
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -1527,7 +1529,7 @@ class TestCGMPhase3Coordinator:
 
     async def test_g7_event_used_for_glucose(self, hass: HomeAssistant):
         """Event 399 (G7) routes to cgm_readings and populates glucose sensor."""
-        from custom_components.carelink.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
+        from custom_components.tandem.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
 
         events = [_make_cgm_event_g7(1, 155)]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
@@ -1535,7 +1537,7 @@ class TestCGMPhase3Coordinator:
 
     async def test_fsl2_event_used_for_glucose(self, hass: HomeAssistant):
         """Event 372 (FSL2) routes to cgm_readings and populates glucose sensor."""
-        from custom_components.carelink.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
+        from custom_components.tandem.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
 
         events = [_make_cgm_event_fsl2(1, 180)]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
@@ -1543,7 +1545,7 @@ class TestCGMPhase3Coordinator:
 
     async def test_mixed_cgm_sources_latest_wins(self, hass: HomeAssistant):
         """When G6 (256) and G7 (399) events exist, most recent timestamp wins."""
-        from custom_components.carelink.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
+        from custom_components.tandem.const import TANDEM_SENSOR_KEY_LASTSG_MGDL
 
         events = [
             _make_cgm_event(1, 100, minutes_ago=10),  # older G6
@@ -1588,7 +1590,7 @@ class TestCGMPhase3Coordinator:
 
     async def test_g7_cgm_summary_computed(self, hass: HomeAssistant):
         """G7 events contribute to CGM summary statistics (avg glucose, TIR)."""
-        from custom_components.carelink.const import TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL
+        from custom_components.tandem.const import TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL
 
         events = [_make_cgm_event_g7(i, 120 + i, minutes_ago=i * 5) for i in range(10)]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))

@@ -24,8 +24,9 @@ FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "known_good_api_response.json"
 
 # Source files to scan for API field accesses
 SOURCE_FILES = [
-    REPO_ROOT / "custom_components" / "carelink" / "tandem_api.py",
-    REPO_ROOT / "custom_components" / "carelink" / "__init__.py",
+    REPO_ROOT / "custom_components" / "tandem" / "tandem_api.py",
+    REPO_ROOT / "custom_components" / "tandem" / "coordinator.py",
+    REPO_ROOT / "custom_components" / "tandem" / "__init__.py",
 ]
 
 # Fixture sections → canonical field lists to check

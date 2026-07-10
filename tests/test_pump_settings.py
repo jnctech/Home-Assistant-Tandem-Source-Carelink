@@ -7,11 +7,12 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
     TANDEM_CLIENT,
     PLATFORM_TYPE,
@@ -36,7 +37,7 @@ from custom_components.carelink.const import (
 
 async def _setup_coordinator(hass: HomeAssistant, mock_data: dict[str, Any]):
     """Set up a TandemCoordinator with mocked API calls and return it."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -50,6 +51,7 @@ async def _setup_coordinator(hass: HomeAssistant, mock_data: dict[str, Any]):
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)

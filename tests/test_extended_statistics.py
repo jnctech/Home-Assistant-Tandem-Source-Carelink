@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 
 from conftest import make_tandem_coordinator
 
-from custom_components.carelink.const import DOMAIN
+from custom_components.tandem.const import DOMAIN
 
 
 # -- Mock stat data classes ------------------------------------------------

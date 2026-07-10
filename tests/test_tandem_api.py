@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from custom_components.carelink.tandem_api import (
+from custom_components.tandem.tandem_api import (
     TandemSourceClient,
     TandemAuthError,
     TandemApiError,

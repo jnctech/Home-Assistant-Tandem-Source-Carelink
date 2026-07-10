@@ -33,19 +33,13 @@ from urllib.parse import urlencode, urlparse, parse_qs
 import certifi
 import httpx
 
+from .exceptions import TandemApiError, TandemAuthError  # noqa: F401  (re-exported for callers)
+
 _LOGGER = logging.getLogger(__name__)
 
 USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 )
-
-
-class TandemAuthError(Exception):
-    """Raised when authentication fails."""
-
-
-class TandemApiError(Exception):
-    """Raised when an API call fails."""
 
 
 # ── Binary pump event decoder ────────────────────────────────────────

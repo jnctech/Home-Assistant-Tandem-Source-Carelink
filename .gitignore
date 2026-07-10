@@ -200,3 +200,6 @@ config/
 test_config/
 carelink-integration-preview.png
 branding/
+
+# oob estate governance pointer (internal — not shipped in the public integration)
+docs/internal/oob-standards-pointer.md

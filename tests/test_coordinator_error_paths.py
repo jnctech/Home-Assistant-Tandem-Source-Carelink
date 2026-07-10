@@ -16,12 +16,13 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from unittest.mock import AsyncMock
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
     PLATFORM_TANDEM,
     PLATFORM_TYPE,
@@ -52,6 +53,7 @@ def _make_entry(hass: HomeAssistant) -> MockConfigEntry:
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
     return entry
 
 
@@ -79,7 +81,7 @@ def _make_client() -> AsyncMock:
 
 async def _make_coordinator(hass: HomeAssistant):
     """Return a running TandemCoordinator and its mocked client."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = _make_entry(hass)
     client = _make_client()
@@ -100,8 +102,8 @@ class TestUpdateDataLoginErrors:
 
     async def test_tandemautherror_during_login(self, hass: HomeAssistant):
         """TandemAuthError from login → ConfigEntryAuthFailed (triggers reauth)."""
-        from custom_components.carelink import TandemCoordinator
-        from custom_components.carelink.tandem_api import TandemAuthError
+        from custom_components.tandem import TandemCoordinator
+        from custom_components.tandem.tandem_api import TandemAuthError
 
         entry = _make_entry(hass)
         client = _make_client()
@@ -117,7 +119,7 @@ class TestUpdateDataLoginErrors:
 
     async def test_generic_exception_during_login(self, hass: HomeAssistant):
         """Generic exception from login → UpdateFailed → ConfigEntryNotReady."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = _make_entry(hass)
         client = _make_client()
@@ -137,7 +139,7 @@ class TestUpdateDataMetadataBranch:
 
     async def test_dict_metadata_accepted(self, hass: HomeAssistant):
         """When get_pump_event_metadata returns a dict, coordinator proceeds normally."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = _make_entry(hass)
         client = _make_client()
@@ -156,8 +158,8 @@ class TestUpdateDataFetchErrors:
 
     async def test_tандемapierror_raises_updatefailed(self, hass: HomeAssistant):
         """TandemApiError from get_recent_data → ConfigEntryNotReady."""
-        from custom_components.carelink import TandemCoordinator
-        from custom_components.carelink.tandem_api import TandemApiError
+        from custom_components.tandem import TandemCoordinator
+        from custom_components.tandem.tandem_api import TandemApiError
 
         entry = _make_entry(hass)
         client = _make_client()
@@ -172,7 +174,7 @@ class TestUpdateDataFetchErrors:
 
     async def test_generic_exception_from_get_recent_data(self, hass: HomeAssistant):
         """Generic exception from get_recent_data → ConfigEntryNotReady."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = _make_entry(hass)
         client = _make_client()
@@ -187,7 +189,7 @@ class TestUpdateDataFetchErrors:
 
     async def test_non_dict_return_raises_updatefailed(self, hass: HomeAssistant):
         """Non-dict return from get_recent_data → ConfigEntryNotReady."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = _make_entry(hass)
         client = _make_client()

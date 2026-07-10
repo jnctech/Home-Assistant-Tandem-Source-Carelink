@@ -10,10 +10,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import DOMAIN, PLATFORM_TANDEM, PLATFORM_TYPE, TANDEM_CLIENT
+from custom_components.tandem.const import DOMAIN, PLATFORM_TANDEM, PLATFORM_TYPE, TANDEM_CLIENT
 
 
 # -- Mock stat data classes ------------------------------------------------
@@ -88,7 +89,7 @@ _BASE_TS = datetime(2026, 3, 1, 12, 0, 0)
 
 async def _make_coordinator(hass: HomeAssistant):
     """Create a minimal TandemCoordinator wired to hass (no network calls)."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -101,6 +102,7 @@ async def _make_coordinator(hass: HomeAssistant):
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -234,7 +236,7 @@ class TestCorrectionBolusStatistic:
         ]
         await coordinator._import_statistics(events)
         stat_ids = {c[0][1].statistic_id for c in mock_import.call_args_list}
-        assert "sensor.carelink_correction_bolus" in stat_ids
+        assert "sensor.tandem_correction_bolus" in stat_ids
 
     async def test_correction_bolus_nonzero_delivery_status_skipped(self, hass: HomeAssistant, mock_import):
         """Event 280 with delivery_status != 0 (not completed) does not generate a stat."""

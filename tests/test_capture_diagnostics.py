@@ -11,8 +11,8 @@ import pytest
 
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from custom_components.carelink import _handle_capture_diagnostics
-from custom_components.carelink.const import COORDINATOR, DOMAIN
+from custom_components.tandem import _handle_capture_diagnostics
+from custom_components.tandem.const import COORDINATOR, DOMAIN
 
 
 def _make_coordinator_mock(
@@ -60,7 +60,7 @@ def _make_coordinator_mock(
 async def _run_diagnostics(hass, entry_id, mock_call, coordinator, tmp_path):
     """Run _handle_capture_diagnostics with file output to tmp_path."""
     hass.data.setdefault(DOMAIN, {})[entry_id] = {COORDINATOR: coordinator}
-    out_file = str(tmp_path / "carelink_diagnostics_test.json")
+    out_file = str(tmp_path / "tandem_diagnostics_test.json")
 
     with (
         patch.object(hass.config, "path", return_value=out_file),

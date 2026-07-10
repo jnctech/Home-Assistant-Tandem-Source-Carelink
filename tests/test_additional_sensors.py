@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 
 from conftest import make_tandem_coordinator
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     UNAVAILABLE,
     TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE,
     TANDEM_SENSOR_KEY_CGM_STATUS,

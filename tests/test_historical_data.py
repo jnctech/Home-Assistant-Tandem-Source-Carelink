@@ -9,11 +9,12 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
     TANDEM_CLIENT,
     PLATFORM_TYPE,
@@ -153,7 +154,7 @@ async def _setup_coordinator(
     mock_data: dict[str, Any],
 ):
     """Set up a TandemCoordinator with mocked data and return it."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -167,6 +168,7 @@ async def _setup_coordinator(
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -411,7 +413,7 @@ class TestSequenceDeduplication:
 
     async def test_stale_events_filtered_on_second_poll(self, hass: HomeAssistant):
         """Test that previously-seen events are filtered on the next poll."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -424,6 +426,7 @@ class TestSequenceDeduplication:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         first_events = [
             _make_cgm_event(seq=10, glucose_mgdl=100, minutes_ago=10),
@@ -538,7 +541,7 @@ class TestImportStatistics:
 
     async def test_statistics_imported_for_cgm(self, hass: HomeAssistant):
         """Test that CGM events generate statistics import calls."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -551,6 +554,7 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)
@@ -586,7 +590,7 @@ class TestImportStatistics:
 
     async def test_statistics_period_rounded_to_hour(self, hass: HomeAssistant):
         """Test that statistics timestamps are rounded to the top of the hour."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
         from datetime import timezone as dt_tz
 
         entry = MockConfigEntry(
@@ -600,6 +604,7 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)
@@ -636,7 +641,7 @@ class TestImportStatistics:
 
     async def test_statistics_handles_import_error(self, hass: HomeAssistant):
         """Test that import errors are handled gracefully."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -649,6 +654,7 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)

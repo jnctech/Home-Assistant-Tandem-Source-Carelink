@@ -1,1040 +1,148 @@
-"""Medtronic Carelink / Tandem t:slim integration."""
+"""Tandem t:slim Source data update coordinator.
+
+Fetches pump events from the Tandem Source Reports API, replays intermediate
+events (CGM, bolus, basal) through the coordinator so HA's recorder captures
+the full history between polls, and imports correctly-timestamped long-term
+statistics. Moved verbatim from the pre-refactor __init__.py (research preserved).
+"""
 
 from __future__ import annotations
 
-import functools
-import json
 import logging
 import math
-import os
-import re
-import shutil
-
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.util.dt import DEFAULT_TIME_ZONE
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
 
-from .api import CarelinkClient, LEGACY_AUTH_FILE, AUTH_FILE_PREFIX, SHARED_AUTH_FILE
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from .helpers import is_data_stale
+from .util import sanitize_for_logging
+from .const import TANDEM_SENSOR_KEY_TIME_IN_RANGE as TANDEM_TIME_IN_RANGE
 from .tandem_api import (
-    TandemSourceClient,
-    TandemAuthError,
-    TandemApiError,
-    parse_dotnet_date,
-    EVT_CGM_DATA_GXB,
-    EVT_CGM_DATA_G7,
-    EVT_CGM_DATA_FSL2,
     EVT_AA_DAILY_STATUS,
-    EVT_BOLUS_COMPLETED,
-    EVT_BOLEX_COMPLETED,
-    EVT_BOLUS_DELIVERY,
-    EVT_BASAL_RATE_CHANGE,
-    EVT_BASAL_DELIVERY,
-    EVT_PUMPING_SUSPENDED,
-    EVT_PUMPING_RESUMED,
-    EVT_BG_READING_TAKEN,
-    EVT_CARTRIDGE_FILLED,
-    EVT_CARBS_ENTERED,
-    EVT_CANNULA_FILLED,
-    EVT_TUBING_FILLED,
-    EVT_AA_USER_MODE_CHANGE,
     EVT_AA_PCM_CHANGE,
-    EVT_DAILY_BASAL,
-    EVT_SHELF_MODE,
-    EVT_USB_CONNECTED,
-    EVT_USB_DISCONNECTED,
+    EVT_AA_USER_MODE_CHANGE,
+    EVT_ALARM_ACTIVATED,
+    EVT_ALARM_CLEARED,
     EVT_ALERT_ACTIVATED,
     EVT_ALERT_CLEARED,
-    EVT_ALARM_ACTIVATED,
-    EVT_MALFUNCTION_ACTIVATED,
-    EVT_ALARM_CLEARED,
+    EVT_BASAL_DELIVERY,
+    EVT_BASAL_RATE_CHANGE,
+    EVT_BG_READING_TAKEN,
+    EVT_BOLEX_COMPLETED,
+    EVT_BOLUS_COMPLETED,
+    EVT_BOLUS_DELIVERY,
     EVT_BOLUS_REQUESTED_MSG1,
     EVT_BOLUS_REQUESTED_MSG2,
     EVT_BOLUS_REQUESTED_MSG3,
+    EVT_CANNULA_FILLED,
+    EVT_CARBS_ENTERED,
+    EVT_CARTRIDGE_FILLED,
+    EVT_CGM_DATA_FSL2,
+    EVT_CGM_DATA_G7,
+    EVT_CGM_DATA_GXB,
+    EVT_DAILY_BASAL,
+    EVT_MALFUNCTION_ACTIVATED,
     EVT_NEW_DAY,
     EVT_PLGS_PERIODIC,
+    EVT_PUMPING_RESUMED,
+    EVT_PUMPING_SUSPENDED,
+    EVT_SHELF_MODE,
+    EVT_TUBING_FILLED,
+    EVT_USB_CONNECTED,
+    EVT_USB_DISCONNECTED,
+    TandemApiError,
+    TandemAuthError,
+    parse_dotnet_date,
 )
-from .nightscout_uploader import NightscoutUploader
-from .helpers import is_data_stale
-
 from .const import (
-    CLIENT,
-    TANDEM_CLIENT,
-    UPLOADER,
-    DOMAIN,
-    SCAN_INTERVAL,
-    COORDINATOR,
-    UNAVAILABLE,
-    PLATFORM_TYPE,
-    PLATFORM_CARELINK,
-    PLATFORM_TANDEM,
+    CGM_STATUS_MAP,
+    DEVICE_PUMP_MANUFACTURER,
     DEVICE_PUMP_MODEL,
     DEVICE_PUMP_NAME,
     DEVICE_PUMP_SERIAL,
-    DEVICE_PUMP_MANUFACTURER,
-    SENSOR_KEY_PUMP_BATTERY_LEVEL,
-    SENSOR_KEY_CONDUIT_BATTERY_LEVEL,
-    SENSOR_KEY_SENSOR_BATTERY_LEVEL,
-    SENSOR_KEY_SENSOR_DURATION_HOURS,
-    SENSOR_KEY_SENSOR_DURATION_MINUTES,
-    SENSOR_KEY_LASTSG_MGDL,
-    SENSOR_KEY_LASTSG_MMOL,
-    SENSOR_KEY_UPDATE_TIMESTAMP,
-    SENSOR_KEY_LASTSG_TIMESTAMP,
-    SENSOR_KEY_LASTSG_TREND,
-    SENSOR_KEY_SG_DELTA,
-    SENSOR_KEY_RESERVOIR_LEVEL,
-    SENSOR_KEY_RESERVOIR_AMOUNT,
-    SENSOR_KEY_RESERVOIR_REMAINING_UNITS,
-    SENSOR_KEY_ACTIVE_INSULIN,
-    SENSOR_KEY_ACTIVE_INSULIN_ATTRS,
-    SENSOR_KEY_LAST_ALARM,
-    SENSOR_KEY_LAST_ALARM_ATTRS,
-    SENSOR_KEY_ACTIVE_BASAL_PATTERN,
-    SENSOR_KEY_AVG_GLUCOSE_MMOL,
-    SENSOR_KEY_AVG_GLUCOSE_MGDL,
-    SENSOR_KEY_BELOW_HYPO_LIMIT,
-    SENSOR_KEY_ABOVE_HYPER_LIMIT,
-    SENSOR_KEY_TIME_IN_RANGE,
-    SENSOR_KEY_MAX_AUTO_BASAL_RATE,
-    SENSOR_KEY_SG_BELOW_LIMIT,
-    SENSOR_KEY_LAST_MEAL_MARKER,
-    SENSOR_KEY_LAST_MEAL_MARKER_ATTRS,
-    SENSOR_KEY_ACTIVE_NOTIFICATION,
-    SENSOR_KEY_ACTIVE_NOTIFICATION_ATTRS,
-    SENSOR_KEY_LAST_INSULIN_MARKER,
-    SENSOR_KEY_LAST_INSULIN_MARKER_ATTRS,
-    SENSOR_KEY_LAST_AUTO_BASAL_DELIVERY_MARKER,
-    SENSOR_KEY_LAST_AUTO_BASAL_DELIVERY_MARKER_ATTRS,
-    SENSOR_KEY_LAST_AUTO_MODE_STATUS_MARKER,
-    SENSOR_KEY_LAST_AUTO_MODE_STATUS_MARKER_ATTRS,
-    SENSOR_KEY_LAST_LOW_GLUCOSE_SUSPENDED_MARKER,
-    SENSOR_KEY_LAST_LOW_GLUCOSE_SUSPENDED_MARKER_ATTRS,
-    BINARY_SENSOR_KEY_PUMP_COMM_STATE,
-    BINARY_SENSOR_KEY_SENSOR_COMM_STATE,
-    BINARY_SENSOR_KEY_CONDUIT_IN_RANGE,
-    BINARY_SENSOR_KEY_CONDUIT_PUMP_IN_RANGE,
-    BINARY_SENSOR_KEY_CONDUIT_SENSOR_IN_RANGE,
-    SENSOR_KEY_CLIENT_TIMEZONE,
-    SENSOR_KEY_APP_MODEL_TYPE,
-    SENSOR_KEY_MEDICAL_DEVICE_MANUFACTURER,
-    SENSOR_KEY_MEDICAL_DEVICE_MODEL_NUMBER,
-    SENSOR_KEY_MEDICAL_DEVICE_HARDWARE_REVISION,
-    SENSOR_KEY_MEDICAL_DEVICE_FIRMWARE_REVISION,
-    SENSOR_KEY_MEDICAL_DEVICE_SYSTEM_ID,
-    MS_TIMEZONE_TO_IANA_MAP,
-    SENSOR_KEY_TIME_TO_NEXT_CALIB_HOURS,
-    CARELINK_CODE_MAP,
-    # Tandem sensor keys
-    TANDEM_SENSOR_KEY_LASTSG_MMOL,
-    TANDEM_SENSOR_KEY_LASTSG_MGDL,
-    TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
-    TANDEM_SENSOR_KEY_SG_DELTA,
-    TANDEM_SENSOR_KEY_LAST_BOLUS_UNITS,
-    TANDEM_SENSOR_KEY_LAST_BOLUS_TIMESTAMP,
-    TANDEM_SENSOR_KEY_LAST_BOLUS_ATTRS,
-    TANDEM_SENSOR_KEY_BASAL_RATE,
-    TANDEM_SENSOR_KEY_ACTIVE_INSULIN,
-    TANDEM_SENSOR_KEY_LAST_UPLOAD,
-    TANDEM_SENSOR_KEY_SOFTWARE_VERSION,
-    TANDEM_SENSOR_KEY_PUMP_SERIAL_INFO,
-    TANDEM_SENSOR_KEY_PUMP_MODEL_INFO,
-    TANDEM_SENSOR_KEY_AVG_GLUCOSE_MMOL,
-    TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL,
-    TANDEM_SENSOR_KEY_TIME_IN_RANGE as TANDEM_TIME_IN_RANGE,
-    TANDEM_SENSOR_KEY_CGM_USAGE,
-    TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
-    TANDEM_SENSOR_KEY_UPDATE_TIMESTAMP,
-    TANDEM_SENSOR_KEY_LAST_MEAL_BOLUS,
-    TANDEM_SENSOR_KEY_LAST_MEAL_BOLUS_ATTRS,
-    # Computed CGM summary
-    TANDEM_SENSOR_KEY_GLUCOSE_STD_DEV,
-    TANDEM_SENSOR_KEY_GLUCOSE_CV,
-    TANDEM_SENSOR_KEY_GMI,
-    TANDEM_SENSOR_KEY_TIME_BELOW_RANGE,
-    TANDEM_SENSOR_KEY_TIME_ABOVE_RANGE,
-    # New event-derived sensors
-    TANDEM_SENSOR_KEY_ACTIVITY_MODE,
-    TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
-    TANDEM_SENSOR_KEY_PUMP_SUSPENDED,
-    TANDEM_SENSOR_KEY_LAST_CARBS,
-    TANDEM_SENSOR_KEY_LAST_CARBS_TIMESTAMP,
-    TANDEM_SENSOR_KEY_LAST_CARTRIDGE_CHANGE,
-    TANDEM_SENSOR_KEY_LAST_SITE_CHANGE,
-    TANDEM_SENSOR_KEY_LAST_TUBING_CHANGE,
-    TANDEM_SENSOR_KEY_CARTRIDGE_INSULIN,
-    TANDEM_SENSOR_KEY_LAST_BG_READING,
-    TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE,
-    TANDEM_SENSOR_KEY_CGM_STATUS,
-    TANDEM_SENSOR_KEY_LAST_CARTRIDGE_FILL,
-    TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON,
-    # Event-derived lookup maps
-    CGM_STATUS_MAP,
-    TANDEM_ALERT_MAP,
+    DOMAIN,
     TANDEM_ALARM_MAP,
-    # Computed insulin summary
-    TANDEM_SENSOR_KEY_TOTAL_DAILY_INSULIN,
-    TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL,
-    TANDEM_SENSOR_KEY_DAILY_BASAL_TOTAL,
-    TANDEM_SENSOR_KEY_BASAL_BOLUS_SPLIT,
-    TANDEM_SENSOR_KEY_DAILY_CARBS,
-    TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT,
-    # Pump settings (from metadata.lastUpload.settings)
+    TANDEM_ALERT_MAP,
+    TANDEM_CLIENT,
+    TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT,
+    TANDEM_SENSOR_KEY_ACTIVE_INSULIN,
     TANDEM_SENSOR_KEY_ACTIVE_PROFILE,
     TANDEM_SENSOR_KEY_ACTIVE_PROFILE_ATTRS,
-    TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
-    TANDEM_SENSOR_KEY_CONTROL_IQ_WEIGHT,
-    TANDEM_SENSOR_KEY_CONTROL_IQ_TDI,
-    TANDEM_SENSOR_KEY_MAX_BOLUS,
+    TANDEM_SENSOR_KEY_ACTIVITY_MODE,
+    TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL,
+    TANDEM_SENSOR_KEY_AVG_GLUCOSE_MMOL,
+    TANDEM_SENSOR_KEY_BASAL_BOLUS_SPLIT,
     TANDEM_SENSOR_KEY_BASAL_LIMIT,
+    TANDEM_SENSOR_KEY_BASAL_RATE,
+    TANDEM_SENSOR_KEY_BATTERY_PERCENT,
+    TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
+    TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
+    TANDEM_SENSOR_KEY_BOLUS_CALC_ATTRS,
+    TANDEM_SENSOR_KEY_CARTRIDGE_INSULIN,
     TANDEM_SENSOR_KEY_CGM_HIGH_ALERT,
     TANDEM_SENSOR_KEY_CGM_LOW_ALERT,
-    TANDEM_SENSOR_KEY_LOW_BG_THRESHOLD,
-    TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD,
-    TANDEM_SENSOR_KEY_LOW_INSULIN_ALERT,
-    # Battery monitoring (Phase 1)
-    TANDEM_SENSOR_KEY_BATTERY_PERCENT,
-    TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
-    TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
-    TANDEM_SENSOR_KEY_CHARGING_STATUS,
-    # Alerts & Alarms (Phase 2)
-    TANDEM_SENSOR_KEY_LAST_ALERT,
-    TANDEM_SENSOR_KEY_LAST_ALARM,
-    TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT,
-    # CGM sensor type (Phase 3)
+    TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE,
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
-    # Bolus Calculator (Phase 4)
+    TANDEM_SENSOR_KEY_CGM_STATUS,
+    TANDEM_SENSOR_KEY_CGM_USAGE,
+    TANDEM_SENSOR_KEY_CHARGING_STATUS,
+    TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
+    TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
+    TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
+    TANDEM_SENSOR_KEY_CONTROL_IQ_TDI,
+    TANDEM_SENSOR_KEY_CONTROL_IQ_WEIGHT,
+    TANDEM_SENSOR_KEY_DAILY_BASAL_TOTAL,
+    TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT,
+    TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL,
+    TANDEM_SENSOR_KEY_DAILY_CARBS,
+    TANDEM_SENSOR_KEY_ESTIMATED_INSULIN_REMAINING,
+    TANDEM_SENSOR_KEY_GLUCOSE_CV,
+    TANDEM_SENSOR_KEY_GLUCOSE_STD_DEV,
+    TANDEM_SENSOR_KEY_GMI,
+    TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD,
+    TANDEM_SENSOR_KEY_LASTSG_MGDL,
+    TANDEM_SENSOR_KEY_LASTSG_MMOL,
+    TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
+    TANDEM_SENSOR_KEY_LAST_ALARM,
+    TANDEM_SENSOR_KEY_LAST_ALERT,
+    TANDEM_SENSOR_KEY_LAST_BG_READING,
+    TANDEM_SENSOR_KEY_LAST_BOLUS_ATTRS,
     TANDEM_SENSOR_KEY_LAST_BOLUS_BG,
     TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS,
     TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION,
     TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD,
-    TANDEM_SENSOR_KEY_BOLUS_CALC_ATTRS,
-    # PLGS & Daily Status (Phase 5)
+    TANDEM_SENSOR_KEY_LAST_BOLUS_TIMESTAMP,
+    TANDEM_SENSOR_KEY_LAST_BOLUS_UNITS,
+    TANDEM_SENSOR_KEY_LAST_CARBS,
+    TANDEM_SENSOR_KEY_LAST_CARBS_TIMESTAMP,
+    TANDEM_SENSOR_KEY_LAST_CARTRIDGE_CHANGE,
+    TANDEM_SENSOR_KEY_LAST_CARTRIDGE_FILL,
+    TANDEM_SENSOR_KEY_LAST_MEAL_BOLUS,
+    TANDEM_SENSOR_KEY_LAST_MEAL_BOLUS_ATTRS,
+    TANDEM_SENSOR_KEY_LAST_SITE_CHANGE,
+    TANDEM_SENSOR_KEY_LAST_TUBING_CHANGE,
+    TANDEM_SENSOR_KEY_LAST_UPLOAD,
+    TANDEM_SENSOR_KEY_LOW_BG_THRESHOLD,
+    TANDEM_SENSOR_KEY_LOW_INSULIN_ALERT,
+    TANDEM_SENSOR_KEY_MAX_BOLUS,
     TANDEM_SENSOR_KEY_PREDICTED_GLUCOSE,
-    # Estimated Remaining Insulin (Phase 6)
-    TANDEM_SENSOR_KEY_ESTIMATED_INSULIN_REMAINING,
+    TANDEM_SENSOR_KEY_PUMP_MODEL_INFO,
+    TANDEM_SENSOR_KEY_PUMP_SERIAL_INFO,
+    TANDEM_SENSOR_KEY_PUMP_SUSPENDED,
+    TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON,
+    TANDEM_SENSOR_KEY_SG_DELTA,
+    TANDEM_SENSOR_KEY_SOFTWARE_VERSION,
+    TANDEM_SENSOR_KEY_TIME_ABOVE_RANGE,
+    TANDEM_SENSOR_KEY_TIME_BELOW_RANGE,
+    TANDEM_SENSOR_KEY_TOTAL_DAILY_INSULIN,
+    TANDEM_SENSOR_KEY_UPDATE_TIMESTAMP,
+    UNAVAILABLE,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
-
 _LOGGER = logging.getLogger(__name__)
-
-SERVICE_IMPORT_HISTORY = "import_history"
-SERVICE_CAPTURE_DIAGNOSTICS = "capture_diagnostics"
-
-
-# Fields containing personally identifiable information that should be redacted.
-# Note: "name" is intentionally broad — it catches pumper_info.name (full name)
-# and profile[].name (often the patient's first name). This over-redacts
-# non-PII profile names like "Sick" or "Active", but PII protection takes
-# priority.  Profile idp index is sufficient for debugging.
-PII_FIELDS = {
-    "firstName",
-    "lastName",
-    "name",
-    "birthdate",
-    "username",
-    "patientId",
-    "conduitSerialNumber",
-    "medicalDeviceSerialNumber",
-    "systemId",
-    "email",
-    "phone",
-    "emailAddress",
-    "phoneNumber",
-    "address",
-    "dateOfBirth",
-    "dob",
-    "deviceSerialNumber",
-    "patientName",
-    "patientDateOfBirth",
-    "patientCareGiver",
-}
-
-
-def sanitize_for_logging(data, depth=0):
-    """Recursively sanitize data by redacting PII fields for safe logging."""
-    if depth > 10:  # Prevent infinite recursion
-        return "[MAX_DEPTH]"
-    if isinstance(data, dict):
-        return {k: "[REDACTED]" if k in PII_FIELDS else sanitize_for_logging(v, depth + 1) for k, v in data.items()}
-    if isinstance(data, list):
-        return [sanitize_for_logging(item, depth + 1) for item in data]
-    return data
-
-
-def convert_date_to_isodate(date):
-    date_iso = re.sub(r"\.\d{3}Z$", "+00:00", date)
-    dt = datetime.fromisoformat(date_iso)
-    # Normalize any UTC offset to UTC before stripping tzinfo so the resulting
-    # naive datetime always represents UTC, regardless of what offset the API sent.
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
-
-
-def _migrate_legacy_logindata(config_path: str, entry_id: str) -> None:
-    """Migrate logindata.json from old location to new entry-specific location.
-
-    Priority order for source:
-    1. Shared location: {config_path}/carelink_logindata.json (token generator add-on)
-    2. Legacy location: custom_components/carelink/logindata.json
-
-    Target: {config_path}/carelink_logindata_{entry_id}.json
-
-    Note: Source files are NOT deleted after migration to serve as fallback
-    if the entry-specific location becomes unavailable.
-    """
-    new_filename = f"{AUTH_FILE_PREFIX}_{entry_id}.json"
-    new_path = os.path.join(config_path, new_filename)
-
-    # If entry-specific file already exists, no migration needed
-    if os.path.exists(new_path):
-        _LOGGER.debug("Entry-specific logindata already exists: %s", new_path)
-        return
-
-    shared_path = os.path.join(config_path, SHARED_AUTH_FILE)
-    legacy_path = os.path.join(config_path, LEGACY_AUTH_FILE)
-
-    # Try shared location first (token generator add-on writes here)
-    if os.path.exists(shared_path):
-        try:
-            shutil.copy(shared_path, new_path)
-            _LOGGER.info("Copied logindata from shared location %s to %s", shared_path, new_path)
-            return
-        except OSError as error:
-            _LOGGER.warning(
-                "Failed to copy logindata from %s to %s: %s. Will use fallback location at runtime.",
-                shared_path,
-                new_path,
-                error,
-            )
-
-    # Try legacy location (old installations)
-    if os.path.exists(legacy_path):
-        try:
-            shutil.copy(legacy_path, new_path)
-            _LOGGER.info("Migrated logindata from legacy location %s to %s", legacy_path, new_path)
-            return
-        except OSError as error:
-            _LOGGER.warning(
-                "Failed to migrate logindata from %s to %s: %s. Will use fallback location at runtime.",
-                legacy_path,
-                new_path,
-                error,
-            )
-
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up carelink from a config entry."""
-
-    hass.data.setdefault(DOMAIN, {})
-
-    config = entry.data
-    platform_type = config.get(PLATFORM_TYPE, PLATFORM_CARELINK)
-
-    if platform_type == PLATFORM_TANDEM:
-        return await _async_setup_tandem_entry(hass, entry, config)
-    return await _async_setup_carelink_entry(hass, entry, config)
-
-
-async def _async_setup_carelink_entry(hass: HomeAssistant, entry: ConfigEntry, config: dict) -> bool:
-    """Set up a Medtronic Carelink config entry."""
-    # Migrate logindata from old location if needed
-    await hass.async_add_executor_job(_migrate_legacy_logindata, hass.config.path(), entry.entry_id)
-
-    try:
-        carelink_client = CarelinkClient(
-            config["cl_refresh_token"],
-            config["cl_token"],
-            config["cl_client_id"],
-            config["cl_client_secret"],
-            config["cl_mag_identifier"],
-            config["patientId"],
-            config_path=hass.config.path(),
-            entry_id=entry.entry_id,
-        )
-    except Exception as err:
-        raise ConfigEntryNotReady(f"Failed to initialise Carelink client: {err}") from err
-
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        CLIENT: carelink_client,
-        PLATFORM_TYPE: PLATFORM_CARELINK,
-    }
-
-    if config.get("nightscout_url") and config.get("nightscout_api"):
-        nightscout_uploader = NightscoutUploader(config["nightscout_url"], config["nightscout_api"])
-        hass.data[DOMAIN][entry.entry_id][UPLOADER] = nightscout_uploader
-
-    coordinator = CarelinkCoordinator(hass, entry, update_interval=timedelta(seconds=config[SCAN_INTERVAL]))
-
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data[DOMAIN][entry.entry_id][COORDINATOR] = coordinator
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    return True
-
-
-async def _handle_import_history(hass: HomeAssistant, entry_id: str, call: ServiceCall) -> None:
-    """Handle the carelink.import_history service call.
-
-    Fetches pump events for the requested date range in 7-day chunks and imports
-    them as long-term statistics (CGM glucose, active insulin, basal rate).
-    """
-    coordinator = hass.data[DOMAIN][entry_id][COORDINATOR]
-
-    start_str: str = call.data["start_date"]
-    end_str: str = call.data.get("end_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-    _LOGGER.info("[Tandem] import_history: importing events %s → %s", start_str, end_str)
-
-    try:
-        await coordinator.client.login()
-    except Exception as err:
-        _LOGGER.error("[Tandem] import_history: authentication failed: %s", err)
-        return
-
-    # Retrieve tconnectDeviceId from pump metadata
-    try:
-        metadata_list = await coordinator.client.get_pump_event_metadata()
-        metadata_entry = None
-        if isinstance(metadata_list, list) and metadata_list:
-            metadata_entry = metadata_list[0]
-        elif isinstance(metadata_list, dict):
-            metadata_entry = metadata_list
-        device_id = metadata_entry.get("tconnectDeviceId") if metadata_entry else None
-    except Exception as err:
-        _LOGGER.error("[Tandem] import_history: metadata fetch failed: %s", err)
-        return
-
-    if not device_id:
-        _LOGGER.error("[Tandem] import_history: no tconnectDeviceId found in pump metadata")
-        return
-
-    # Fetch events in 7-day chunks to avoid API timeouts on large date ranges
-    chunk_start = date.fromisoformat(start_str)
-    chunk_end_limit = date.fromisoformat(end_str)
-    all_events: list[dict] = []
-
-    while chunk_start <= chunk_end_limit:
-        chunk_end = min(chunk_start + timedelta(days=6), chunk_end_limit)
-        try:
-            events = await coordinator.client.get_pump_events(
-                device_id,
-                chunk_start.isoformat(),
-                chunk_end.isoformat(),
-            )
-            if events:
-                all_events.extend(events)
-        except Exception as err:
-            _LOGGER.warning(
-                "[Tandem] import_history: chunk %s → %s failed: %s",
-                chunk_start.isoformat(),
-                chunk_end.isoformat(),
-                err,
-            )
-        chunk_start = chunk_end + timedelta(days=1)
-
-    _LOGGER.info("[Tandem] import_history: fetched %d events total", len(all_events))
-
-    if all_events:
-        await coordinator._import_statistics(all_events)
-    else:
-        _LOGGER.warning(
-            "[Tandem] import_history: no events returned for %s → %s",
-            start_str,
-            end_str,
-        )
-
-
-async def _handle_capture_diagnostics(hass: HomeAssistant, entry_id: str, call: ServiceCall) -> None:
-    """Handle the carelink.capture_diagnostics service call.
-
-    Fetches raw API responses and writes a sanitised diagnostic snapshot to
-    /config/carelink_diagnostics_<timestamp>.json for schema documentation
-    and troubleshooting.
-    """
-    coordinator = hass.data[DOMAIN][entry_id][COORDINATOR]
-
-    try:
-        await coordinator.client.login()
-    except Exception as err:
-        _LOGGER.error("[Tandem] capture_diagnostics: authentication failed: %s", err)
-        return
-
-    snapshot: dict = {"captured_at": datetime.now(timezone.utc).isoformat()}
-
-    # 1. Raw pump metadata (contains schema fields we need to document)
-    try:
-        metadata_list = await coordinator.client.get_pump_event_metadata()
-        snapshot["pump_event_metadata"] = sanitize_for_logging(metadata_list)
-    except Exception as err:
-        snapshot["pump_event_metadata_error"] = str(err)
-
-    # 2. Pumper info
-    try:
-        pumper_info = await coordinator.client.get_pumper_info()
-        snapshot["pumper_info"] = sanitize_for_logging(pumper_info)
-    except Exception as err:
-        snapshot["pumper_info_error"] = str(err)
-
-    # 3. Pump events — decode and summarise (full events too large)
-    device_id = None
-    if snapshot.get("pump_event_metadata"):
-        meta = snapshot["pump_event_metadata"]
-        if isinstance(meta, list) and meta:
-            device_id = meta[0].get("tconnectDeviceId")
-        elif isinstance(meta, dict):
-            device_id = meta.get("tconnectDeviceId")
-
-    if device_id:
-        from zoneinfo import ZoneInfo
-
-        tz_name = coordinator.timezone or "UTC"
-        try:
-            tz = ZoneInfo(tz_name)
-        except (KeyError, TypeError):
-            tz = ZoneInfo("UTC")
-
-        now_pump = datetime.now(tz)
-        start = (now_pump - timedelta(days=7)).strftime("%Y-%m-%d")
-        end = now_pump.strftime("%Y-%m-%d")
-
-        try:
-            events = await coordinator.client.get_pump_events(device_id, start, end)
-            if events:
-                # Event ID distribution
-                id_counts: dict[str, int] = {}
-                for evt in events:
-                    name = evt.get("event_name", f"Event_{evt.get('event_id')}")
-                    id_counts[name] = id_counts.get(name, 0) + 1
-                snapshot["pump_events_summary"] = {
-                    "date_range": f"{start} to {end}",
-                    "total_events": len(events),
-                    "event_counts": dict(sorted(id_counts.items())),
-                }
-                # Include sample of each event type (first occurrence)
-                seen_types: set[str] = set()
-                samples: list[dict] = []
-                for evt in events:
-                    name = evt.get("event_name", "unknown")
-                    if name not in seen_types:
-                        seen_types.add(name)
-                        sample = dict(evt)
-                        # Convert datetime to string for JSON
-                        if "timestamp" in sample:
-                            sample["timestamp"] = str(sample["timestamp"])
-                        samples.append(sample)
-                snapshot["pump_events_samples"] = samples
-            else:
-                snapshot["pump_events_summary"] = {"total_events": 0}
-        except Exception as err:
-            snapshot["pump_events_error"] = str(err)
-
-    # 4. Current sensor state (keys and their types/values)
-    if coordinator.data:
-        sensor_state: dict = {}
-        for k, v in coordinator.data.items():
-            if v is None:
-                sensor_state[k] = "UNAVAILABLE"
-            elif hasattr(v, "isoformat"):
-                sensor_state[k] = v.isoformat()
-            else:
-                sensor_state[k] = v
-        snapshot["current_sensor_state"] = sanitize_for_logging(sensor_state)
-
-    # Write to HA config directory
-    ts_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = hass.config.path(f"carelink_diagnostics_{ts_str}.json")
-
-    try:
-        import aiofiles
-
-        async with aiofiles.open(out_path, "w") as f:
-            await f.write(json.dumps(snapshot, indent=2, default=str))
-        _LOGGER.info("[Tandem] Diagnostic snapshot written to %s", out_path)
-    except ImportError:
-        # aiofiles not available — fall back to sync write in executor
-        import asyncio
-
-        def _write():
-            with open(out_path, "w") as f:
-                json.dump(snapshot, f, indent=2, default=str)
-
-        await asyncio.get_running_loop().run_in_executor(None, _write)
-        _LOGGER.info("[Tandem] Diagnostic snapshot written to %s", out_path)
-
-
-async def _async_setup_tandem_entry(hass: HomeAssistant, entry: ConfigEntry, config: dict) -> bool:
-    """Set up a Tandem t:slim Source config entry."""
-    _LOGGER.info("Setting up Tandem entry: %s", entry.entry_id)
-
-    try:
-        tandem_client = TandemSourceClient(
-            email=config["tandem_email"],
-            password=config["tandem_password"],
-            region=config.get("tandem_region", "EU"),
-        )
-    except Exception as err:
-        raise ConfigEntryNotReady(f"Failed to initialise Tandem client: {err}") from err
-
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: tandem_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    if config.get("nightscout_url") and config.get("nightscout_api"):
-        nightscout_uploader = NightscoutUploader(config["nightscout_url"], config["nightscout_api"])
-        hass.data[DOMAIN][entry.entry_id][UPLOADER] = nightscout_uploader
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=config[SCAN_INTERVAL]))
-
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data[DOMAIN][entry.entry_id][COORDINATOR] = coordinator
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # ── Register service actions (Tandem platform only) ────────────────
-    if not hass.services.has_service(DOMAIN, SERVICE_IMPORT_HISTORY):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_IMPORT_HISTORY,
-            functools.partial(_handle_import_history, hass, entry.entry_id),
-        )
-    if not hass.services.has_service(DOMAIN, SERVICE_CAPTURE_DIAGNOSTICS):
-        hass.services.async_register(
-            DOMAIN,
-            SERVICE_CAPTURE_DIAGNOSTICS,
-            functools.partial(_handle_capture_diagnostics, hass, entry.entry_id),
-        )
-
-    _LOGGER.info("Tandem entry setup completed")
-    return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        if hass.services.has_service(DOMAIN, SERVICE_IMPORT_HISTORY):
-            hass.services.async_remove(DOMAIN, SERVICE_IMPORT_HISTORY)
-        entry_data = hass.data[DOMAIN].pop(entry.entry_id)
-        # Close HTTP clients to prevent memory leaks
-        if CLIENT in entry_data:
-            try:
-                await entry_data[CLIENT].close()
-            except Exception as error:
-                _LOGGER.warning("Failed to close Carelink client: %s", error)
-        if TANDEM_CLIENT in entry_data:
-            try:
-                await entry_data[TANDEM_CLIENT].close()
-            except Exception as error:
-                _LOGGER.warning("Failed to close Tandem client: %s", error)
-        if UPLOADER in entry_data:
-            try:
-                await entry_data[UPLOADER].close()
-            except Exception as error:
-                _LOGGER.warning("Failed to close Nightscout uploader: %s", error)
-
-    return unload_ok
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Carelink (Medtronic) Coordinator
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class CarelinkCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the Carelink API."""
-
-    def __init__(self, hass: HomeAssistant, entry, update_interval: timedelta):
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
-
-        self.entry_id = entry.entry_id
-        self.configuration_url = "https://carelink.minimed.eu"
-        self.uploader = None
-        self.client = hass.data[DOMAIN][entry.entry_id][CLIENT]
-        self.timezone = hass.config.time_zone
-        self._last_sg_timestamp: str | None = None
-
-        if UPLOADER in hass.data[DOMAIN][entry.entry_id]:
-            self.uploader = hass.data[DOMAIN][entry.entry_id][UPLOADER]
-
-    async def _async_update_data(self):
-        data = {}
-        client_timezone = DEFAULT_TIME_ZONE
-
-        try:
-            logged_in = await self.client.login()
-        except Exception as err:
-            raise UpdateFailed(f"Carelink login error: {err}") from err
-
-        if not logged_in:
-            raise ConfigEntryAuthFailed("Carelink authentication failed — credentials may have expired")
-
-        try:
-            recent_data = await self.client.get_recent_data()
-        except Exception as err:
-            raise UpdateFailed(f"Carelink data fetch failed: {err}") from err
-
-        if recent_data is None:
-            recent_data = {}
-        if recent_data and "patientData" in recent_data:
-            recent_data = recent_data["patientData"]
-
-        _LOGGER.debug("Before Data parsing %s", sanitize_for_logging(recent_data))
-        try:
-            if recent_data is not None and "clientTimeZoneName" in recent_data:
-                client_timezone = recent_data["clientTimeZoneName"]
-
-            data[SENSOR_KEY_CLIENT_TIMEZONE] = client_timezone
-
-            timezone_map = MS_TIMEZONE_TO_IANA_MAP.get(client_timezone, DEFAULT_TIME_ZONE)
-
-            timezone = ZoneInfo(str(timezone_map))
-
-        except Exception as error:
-            _LOGGER.error("Can not set timezone to %s. The error was: %s", timezone_map, error)
-            timezone = ZoneInfo("Europe/London")
-
-        _LOGGER.debug("Using timezone %s", timezone)
-
-        if self.uploader:
-            await self.uploader.send_recent_data(recent_data, timezone)
-
-        recent_data.setdefault("lastConduitDateTime", "")
-        recent_data.setdefault("activeInsulin", {})
-        recent_data.setdefault("therapyAlgorithmState", {})
-        recent_data.setdefault("lastAlarm", {})
-        recent_data.setdefault("markers", [])
-        recent_data.setdefault("sgs", [])
-        recent_data.setdefault("notificationHistory", {})
-
-        # Last Update fetch
-
-        if recent_data["lastConduitDateTime"]:
-            date_time_local = convert_date_to_isodate(recent_data["lastConduitDateTime"])
-            data[SENSOR_KEY_UPDATE_TIMESTAMP] = date_time_local.replace(tzinfo=timezone)
-
-        # Last Glucose level sensors
-
-        current_sg = get_sg(recent_data["sgs"], 0)
-        prev_sg = get_sg(recent_data["sgs"], 1)
-
-        if current_sg and "timestamp" in current_sg:
-            date_time_local = convert_date_to_isodate(current_sg["timestamp"])
-            data[SENSOR_KEY_LASTSG_TIMESTAMP] = date_time_local.replace(tzinfo=timezone)
-            data[SENSOR_KEY_LASTSG_MMOL] = float(round(current_sg["sg"] * 0.0555, 2))
-            data[SENSOR_KEY_LASTSG_MGDL] = current_sg["sg"]
-            if prev_sg:
-                data[SENSOR_KEY_SG_DELTA] = float(current_sg["sg"]) - float(prev_sg["sg"])
-
-        # ── Historical SG readings for statistics ─────────────────────
-        all_valid_sgs = [
-            sg
-            for sg in recent_data["sgs"]
-            if sg.get("sensorState") == "NO_ERROR_MESSAGE"
-            and sg.get("sg") is not None
-            and sg.get("sg", 0) > 0
-            and "timestamp" in sg
-        ]
-        all_valid_sgs.sort(key=lambda x: convert_date_to_isodate(x["timestamp"]))
-
-        if all_valid_sgs:
-            # Store readings history as attributes for custom cards
-            _MAX_SG_HISTORY = 24  # ~2 hours of 5-min readings
-            recent_sgs = all_valid_sgs[-_MAX_SG_HISTORY:]
-            sg_readings_mgdl = []
-            sg_readings_mmol = []
-            for sg in recent_sgs:
-                ts_iso = convert_date_to_isodate(sg["timestamp"]).replace(tzinfo=timezone).isoformat()
-                sg_readings_mgdl.append({"t": ts_iso, "v": sg["sg"]})
-                sg_readings_mmol.append({"t": ts_iso, "v": round(float(sg["sg"]) * 0.0555, 2)})
-            data[f"{SENSOR_KEY_LASTSG_MGDL}_attributes"] = {
-                "readings": sg_readings_mgdl,
-            }
-            data[f"{SENSOR_KEY_LASTSG_MMOL}_attributes"] = {
-                "readings": sg_readings_mmol,
-            }
-        # Sensors
-
-        data[SENSOR_KEY_PUMP_BATTERY_LEVEL] = recent_data.get("pumpBatteryLevelPercent", UNAVAILABLE)
-        data[SENSOR_KEY_CONDUIT_BATTERY_LEVEL] = recent_data.get("conduitBatteryLevel", UNAVAILABLE)
-        data[SENSOR_KEY_SENSOR_BATTERY_LEVEL] = recent_data.get("gstBatteryLevel", UNAVAILABLE)
-        data[SENSOR_KEY_SENSOR_DURATION_HOURS] = recent_data.get("sensorDurationHours", UNAVAILABLE)
-        data[SENSOR_KEY_SENSOR_DURATION_MINUTES] = recent_data.get("sensorDurationMinutes", UNAVAILABLE)
-        data[SENSOR_KEY_RESERVOIR_LEVEL] = recent_data.get("reservoirLevelPercent", UNAVAILABLE)
-        data[SENSOR_KEY_RESERVOIR_AMOUNT] = recent_data.get("reservoirAmount", UNAVAILABLE)
-        data[SENSOR_KEY_RESERVOIR_REMAINING_UNITS] = recent_data.get("reservoirRemainingUnits", UNAVAILABLE)
-        data[SENSOR_KEY_LASTSG_TREND] = recent_data.get("lastSGTrend", UNAVAILABLE)
-
-        data[SENSOR_KEY_TIME_TO_NEXT_CALIB_HOURS] = recent_data.get("timeToNextCalibHours", UNAVAILABLE)
-
-        if recent_data["activeInsulin"]:
-            if "amount" in recent_data["activeInsulin"]:
-                active_insulin = recent_data["activeInsulin"]
-
-                amount = recent_data["activeInsulin"].get("amount")
-                if amount is not None and float(amount) >= 0:
-                    data[SENSOR_KEY_ACTIVE_INSULIN] = round(float(amount), 2)
-
-                    if "datetime" in active_insulin:
-                        date_time_local = convert_date_to_isodate(active_insulin["datetime"])
-
-                        data[SENSOR_KEY_ACTIVE_INSULIN_ATTRS] = {
-                            "last_update": date_time_local.replace(tzinfo=timezone)
-                        }
-        else:
-            data[SENSOR_KEY_ACTIVE_INSULIN] = UNAVAILABLE
-            data[SENSOR_KEY_ACTIVE_INSULIN_ATTRS] = {}
-
-        if recent_data["lastAlarm"] and "dateTime" in recent_data["lastAlarm"]:
-            # Last alarm sensor
-            last_alarm = recent_data["lastAlarm"]
-
-            date_time_local = convert_date_to_isodate(last_alarm["dateTime"])
-
-            last_alarm["dateTime"] = date_time_local
-            # Handle both numeric and string faultId values (Simplera sensor uses strings like 'alert.sg.threshold.low')
-            fault_id = last_alarm.get("faultId")
-            if fault_id is not None:
-                try:
-                    last_alarm["messageId"] = CARELINK_CODE_MAP.get(int(fault_id), "UNKNOWN")
-                except (ValueError, TypeError):
-                    # String faultId (e.g. 'alert.sg.threshold.low') - use as-is since it's already descriptive
-                    last_alarm["messageId"] = str(fault_id)
-            else:
-                last_alarm["messageId"] = "UNKNOWN"
-
-            data[SENSOR_KEY_LAST_ALARM] = date_time_local.replace(tzinfo=timezone)
-            data[SENSOR_KEY_LAST_ALARM_ATTRS] = last_alarm
-            active_notification = get_active_notification(last_alarm, recent_data["notificationHistory"])
-
-            if active_notification:
-                data[SENSOR_KEY_ACTIVE_NOTIFICATION] = date_time_local.replace(tzinfo=timezone)
-                data[SENSOR_KEY_ACTIVE_NOTIFICATION_ATTRS] = last_alarm
-            else:
-                data[SENSOR_KEY_ACTIVE_NOTIFICATION] = UNAVAILABLE
-                data[SENSOR_KEY_ACTIVE_NOTIFICATION_ATTRS] = {}
-        else:
-            data[SENSOR_KEY_LAST_ALARM] = UNAVAILABLE
-            data[SENSOR_KEY_LAST_ALARM_ATTRS] = {}
-            data[SENSOR_KEY_ACTIVE_NOTIFICATION] = UNAVAILABLE
-            data[SENSOR_KEY_ACTIVE_NOTIFICATION_ATTRS] = {}
-
-        if (
-            recent_data["therapyAlgorithmState"] is not None
-            and "autoModeShieldState" in recent_data["therapyAlgorithmState"]
-        ):
-            data[SENSOR_KEY_ACTIVE_BASAL_PATTERN] = recent_data["therapyAlgorithmState"].get(
-                "autoModeShieldState", UNAVAILABLE
-            )
-        else:
-            data[SENSOR_KEY_ACTIVE_BASAL_PATTERN] = UNAVAILABLE
-
-        average_sg_raw = recent_data.get("averageSG")
-        if average_sg_raw is not None:
-            data[SENSOR_KEY_AVG_GLUCOSE_MMOL] = float(round(average_sg_raw * 0.0555, 2))
-            data[SENSOR_KEY_AVG_GLUCOSE_MGDL] = average_sg_raw
-        else:
-            data[SENSOR_KEY_AVG_GLUCOSE_MMOL] = UNAVAILABLE
-            data[SENSOR_KEY_AVG_GLUCOSE_MGDL] = UNAVAILABLE
-
-        data[SENSOR_KEY_BELOW_HYPO_LIMIT] = recent_data.get("belowHypoLimit", UNAVAILABLE)
-        data[SENSOR_KEY_ABOVE_HYPER_LIMIT] = recent_data.get("aboveHyperLimit", UNAVAILABLE)
-        data[SENSOR_KEY_TIME_IN_RANGE] = recent_data.get("timeInRange", UNAVAILABLE)
-        data[SENSOR_KEY_MAX_AUTO_BASAL_RATE] = recent_data.get("maxAutoBasalRate", UNAVAILABLE)
-        data[SENSOR_KEY_SG_BELOW_LIMIT] = recent_data.get("sgBelowLimit", UNAVAILABLE)
-
-        last_meal_marker = get_last_marker("MEAL", recent_data["markers"])
-
-        if last_meal_marker is not None:
-            data[SENSOR_KEY_LAST_MEAL_MARKER] = last_meal_marker["DATETIME"].replace(tzinfo=timezone)
-            data[SENSOR_KEY_LAST_MEAL_MARKER_ATTRS] = last_meal_marker["ATTRS"]
-        else:
-            data[SENSOR_KEY_LAST_MEAL_MARKER] = UNAVAILABLE
-
-        last_insuline_marker = get_last_marker("INSULIN", recent_data["markers"])
-
-        if last_insuline_marker is not None:
-            data[SENSOR_KEY_LAST_INSULIN_MARKER] = last_insuline_marker["DATETIME"].replace(tzinfo=timezone)
-            data[SENSOR_KEY_LAST_INSULIN_MARKER_ATTRS] = last_insuline_marker["ATTRS"]
-        else:
-            data[SENSOR_KEY_LAST_INSULIN_MARKER] = UNAVAILABLE
-
-        last_autobasal_marker = get_last_marker("AUTO_BASAL_DELIVERY", recent_data["markers"])
-
-        if last_autobasal_marker is not None:
-            data[SENSOR_KEY_LAST_AUTO_BASAL_DELIVERY_MARKER] = last_autobasal_marker["DATETIME"].replace(
-                tzinfo=timezone
-            )
-            data[SENSOR_KEY_LAST_AUTO_BASAL_DELIVERY_MARKER_ATTRS] = last_autobasal_marker["ATTRS"]
-        else:
-            data[SENSOR_KEY_LAST_AUTO_BASAL_DELIVERY_MARKER] = UNAVAILABLE
-
-        last_auto_mode_status_marker = get_last_marker("AUTO_MODE_STATUS", recent_data["markers"])
-
-        if last_auto_mode_status_marker is not None:
-            data[SENSOR_KEY_LAST_AUTO_MODE_STATUS_MARKER] = last_auto_mode_status_marker["DATETIME"].replace(
-                tzinfo=timezone
-            )
-            data[SENSOR_KEY_LAST_AUTO_MODE_STATUS_MARKER_ATTRS] = last_auto_mode_status_marker["ATTRS"]
-        else:
-            data[SENSOR_KEY_LAST_AUTO_MODE_STATUS_MARKER] = UNAVAILABLE
-
-        last_low_glucose_marker = get_last_marker("LOW_GLUCOSE_SUSPENDED", recent_data["markers"])
-
-        if last_low_glucose_marker is not None:
-            data[SENSOR_KEY_LAST_LOW_GLUCOSE_SUSPENDED_MARKER] = last_low_glucose_marker["DATETIME"].replace(
-                tzinfo=timezone
-            )
-            data[SENSOR_KEY_LAST_LOW_GLUCOSE_SUSPENDED_MARKER_ATTRS] = last_low_glucose_marker["ATTRS"]
-        else:
-            data[SENSOR_KEY_LAST_LOW_GLUCOSE_SUSPENDED_MARKER] = UNAVAILABLE
-
-        # Binary Sensors
-
-        data[BINARY_SENSOR_KEY_PUMP_COMM_STATE] = recent_data.get("pumpCommunicationState", UNAVAILABLE)
-        data[BINARY_SENSOR_KEY_SENSOR_COMM_STATE] = recent_data.get("gstCommunicationState", UNAVAILABLE)
-        data[BINARY_SENSOR_KEY_CONDUIT_IN_RANGE] = recent_data.get("conduitInRange", UNAVAILABLE)
-        data[BINARY_SENSOR_KEY_CONDUIT_PUMP_IN_RANGE] = recent_data.get("conduitMedicalDeviceInRange", UNAVAILABLE)
-        data[BINARY_SENSOR_KEY_CONDUIT_SENSOR_IN_RANGE] = recent_data.get("conduitSensorInRange", UNAVAILABLE)
-
-        # Device info
-
-        data[DEVICE_PUMP_SERIAL] = recent_data.get("conduitSerialNumber", UNAVAILABLE)
-        data[DEVICE_PUMP_NAME] = recent_data.get("firstName", "Name") + " " + recent_data.get("lastName", "Unavailable")
-        data[DEVICE_PUMP_MODEL] = recent_data.get("pumpModelNumber", UNAVAILABLE)
-        data[DEVICE_PUMP_MANUFACTURER] = "Medtronic"
-
-        data[SENSOR_KEY_APP_MODEL_TYPE] = recent_data.get("appModelType", UNAVAILABLE)
-
-        device_info = recent_data.get("medicalDeviceInformation")
-        if device_info:
-            data[SENSOR_KEY_MEDICAL_DEVICE_MANUFACTURER] = device_info.get("manufacturer", UNAVAILABLE)
-            data[SENSOR_KEY_MEDICAL_DEVICE_MODEL_NUMBER] = device_info.get("modelNumber", UNAVAILABLE)
-            data[SENSOR_KEY_MEDICAL_DEVICE_HARDWARE_REVISION] = device_info.get("hardwareRevision", UNAVAILABLE)
-            data[SENSOR_KEY_MEDICAL_DEVICE_FIRMWARE_REVISION] = device_info.get("firmwareRevision", UNAVAILABLE)
-            data[SENSOR_KEY_MEDICAL_DEVICE_SYSTEM_ID] = device_info.get("systemId", UNAVAILABLE)
-
-        _LOGGER.debug("_async_update_data: %s", sanitize_for_logging(data))
-
-        # Import correctly-timestamped statistics
-        if all_valid_sgs:
-            self.hass.async_create_task(self._import_sg_statistics(all_valid_sgs, timezone))
-
-        return data
-
-    # ── Long-term statistics import ─────────────────────────────────
-
-    async def _import_sg_statistics(self, valid_sgs: list[dict], tz: ZoneInfo) -> None:
-        """Import SG readings as HA long-term statistics with correct timestamps.
-
-        Creates correctly-timestamped 5-minute statistics entries so
-        Statistics Graph cards show accurate historical data.
-        """
-        try:
-            from homeassistant.components.recorder.statistics import (
-                async_import_statistics,
-            )
-            from homeassistant.components.recorder.models import (
-                StatisticData,
-                StatisticMetaData,
-            )
-        except ImportError:
-            _LOGGER.debug("Carelink: Recorder statistics API not available, skipping")
-            return
-
-        cgm_stats_mmol: list = []
-        cgm_stats_mgdl: list = []
-
-        for sg in valid_sgs:
-            try:
-                ts = convert_date_to_isodate(sg["timestamp"]).replace(tzinfo=tz)
-                sg_val = sg["sg"]
-
-                # Round down to 5-minute boundary for statistics period
-                minute = (ts.minute // 5) * 5
-                period_start = ts.replace(minute=minute, second=0, microsecond=0)
-
-                mmol_val = round(float(sg_val) * 0.0555, 2)
-                cgm_stats_mmol.append(
-                    StatisticData(
-                        start=period_start,
-                        mean=mmol_val,
-                        min=mmol_val,
-                        max=mmol_val,
-                        state=mmol_val,
-                    )
-                )
-                cgm_stats_mgdl.append(
-                    StatisticData(
-                        start=period_start,
-                        mean=float(sg_val),
-                        min=float(sg_val),
-                        max=float(sg_val),
-                        state=float(sg_val),
-                    )
-                )
-            except Exception as e:
-                _LOGGER.warning(
-                    "Carelink: Failed to create statistic from SG entry (timestamp=%s): %s",
-                    sg.get("timestamp"),
-                    e,
-                )
-
-        entity_prefix = f"sensor.{DOMAIN}"
-
-        if cgm_stats_mmol:
-            try:
-                mmol_meta = StatisticMetaData(
-                    has_mean=True,
-                    has_sum=False,
-                    name="Last glucose level mmol",
-                    source="recorder",
-                    statistic_id=f"{entity_prefix}_last_glucose_level_mmol",
-                    unit_of_measurement="mmol/L",
-                )
-                async_import_statistics(self.hass, mmol_meta, cgm_stats_mmol)
-                _LOGGER.debug(
-                    "Carelink: Imported %d mmol statistics",
-                    len(cgm_stats_mmol),
-                )
-            except Exception as e:
-                _LOGGER.warning("Carelink: Failed to import mmol statistics: %s", e)
-
-        if cgm_stats_mgdl:
-            try:
-                mgdl_meta = StatisticMetaData(
-                    has_mean=True,
-                    has_sum=False,
-                    name="Last glucose level mg/dl",
-                    source="recorder",
-                    statistic_id=f"{entity_prefix}_last_glucose_level_mg_dl",
-                    unit_of_measurement="mg/dL",
-                )
-                async_import_statistics(self.hass, mgdl_meta, cgm_stats_mgdl)
-                _LOGGER.debug(
-                    "Carelink: Imported %d mg/dl statistics",
-                    len(cgm_stats_mgdl),
-                )
-            except Exception as e:
-                _LOGGER.warning("Carelink: Failed to import mg/dl statistics: %s", e)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Tandem t:slim Coordinator
-# ═══════════════════════════════════════════════════════════════════════════
 
 
 class TandemCoordinator(DataUpdateCoordinator):
@@ -1047,11 +155,10 @@ class TandemCoordinator(DataUpdateCoordinator):
     """
 
     def __init__(self, hass: HomeAssistant, entry, update_interval: timedelta):
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval, config_entry=entry)
 
         self.entry_id = entry.entry_id
         self.configuration_url = "https://source.tandemdiabetes.com"
-        self.uploader = None
         self.client = hass.data[DOMAIN][entry.entry_id][TANDEM_CLIENT]
         self.timezone = hass.config.time_zone
         self._prev_sg_mgdl: float | None = None
@@ -1070,9 +177,6 @@ class TandemCoordinator(DataUpdateCoordinator):
         self._last_cartridge_fill_volume: float = 0.0
         self._cumulative_delivered: float = 0.0
         self._last_delivery_seq: int = 0
-
-        if UPLOADER in hass.data[DOMAIN][entry.entry_id]:
-            self.uploader = hass.data[DOMAIN][entry.entry_id][UPLOADER]
 
     async def _async_update_data(self):
         _LOGGER.debug("TandemCoordinator: Starting _async_update_data")
@@ -2781,6 +1885,13 @@ class TandemCoordinator(DataUpdateCoordinator):
             if not ts:
                 continue
 
+            # null-not-guess: a malformed (non-datetime) timestamp is skipped, not
+            # coerced or crashed on — a corrupted event must not abort the whole
+            # statistics import for the good events alongside it.
+            if not isinstance(ts, datetime):
+                _LOGGER.debug("Skipping statistic for event %s: non-datetime timestamp %r", eid, ts)
+                continue
+
             # Pump event timestamps are naive local pump time — label them
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=tz)
@@ -2909,64 +2020,3 @@ class TandemCoordinator(DataUpdateCoordinator):
 # ═══════════════════════════════════════════════════════════════════════════
 # Helper functions (Carelink)
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-def get_sg(sgs: list, pos: int) -> dict | None:
-    """Retrieve sensor glucose reading at position from sorted valid readings."""
-    try:
-        valid = [sg for sg in sgs if sg.get("sensorState") == "NO_ERROR_MESSAGE"]
-        sorted_sgs = sorted(
-            valid,
-            key=lambda x: convert_date_to_isodate(x["timestamp"]),
-            reverse=True,
-        )
-        if pos < len(sorted_sgs):
-            return sorted_sgs[pos]
-        return None
-    except Exception as error:
-        _LOGGER.error("Error retrieving SG data at position %d: %s", pos, error)
-        return None
-
-
-def get_active_notification(last_alarm: dict, notifications: dict) -> dict | None:
-    """Retrieve active notification from notifications list."""
-    try:
-        cleared = notifications.get("clearedNotifications")
-        if cleared:
-            sorted_cleared = sorted(
-                cleared,
-                key=lambda x: convert_date_to_isodate(x["dateTime"]),
-                reverse=True,
-            )
-            for entry in sorted_cleared:
-                if last_alarm["GUID"] == entry["referenceGUID"]:
-                    return None
-            return last_alarm
-    except Exception as error:
-        _LOGGER.error("Error checking active notifications: %s", error)
-        return last_alarm
-
-
-def get_last_marker(marker_type: str, markers: list) -> dict | None:
-    """Retrieve the most recent marker of the given type from the 24h marker list."""
-    try:
-        filtered = [m for m in markers if m["type"] == marker_type]
-        sorted_markers = sorted(
-            filtered,
-            key=lambda x: convert_date_to_isodate(x["timestamp"]),
-            reverse=True,
-        )
-
-        last_marker = sorted_markers[0]
-        for k in ["version", "kind", "index", "views"]:
-            last_marker.pop(k, None)
-        return {
-            "DATETIME": convert_date_to_isodate(last_marker["timestamp"]),
-            "ATTRS": last_marker,
-        }
-    except (IndexError, KeyError) as err:
-        _LOGGER.debug("No '%s' marker found: %s", marker_type, err)
-        return None
-    except Exception as error:
-        _LOGGER.error("Error parsing '%s' marker: %s", marker_type, error)
-        return None
