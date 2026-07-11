@@ -226,15 +226,15 @@ See [`examples/simple-dashboard.yaml`](examples/simple-dashboard.yaml) and
 
 ## Upgrading from the old `carelink`-domain releases
 
-**v1.0.0 is a fresh start.** The integration moved to the `tandem` domain and
+**v2.0.0 is a fresh start.** The integration moved to the `tandem` domain and
 dropped the Medtronic CareLink path, so it is a clean install — it does **not**
-migrate the old `carelink` config entry. If you ran a pre-1.0 release:
+migrate the old `carelink` config entry. If you ran any pre-2.0 (`carelink`-domain) release:
 
 1. Note your Tandem Source credentials (email, region, scan interval).
 2. Remove the old integration (Settings → Devices & Services → the old
    Carelink/Tandem entry → Delete) and delete the stale
    `config/custom_components/carelink/` folder.
-3. Install v1.0.0 and add **Tandem t:slim Pump** fresh.
+3. Install v2.0.0 and add **Tandem t:slim Pump** fresh.
 
 Entities are `sensor.tandem_*`; update any dashboards/automations that
 referenced the old ids.
@@ -279,4 +279,4 @@ Have questions, ideas, or want to contribute? [Open an issue](https://github.com
 
 Built and maintained by [@jnctech](https://github.com/jnctech).
 Tandem API research: [jwoglom/tconnectsync](https://github.com/jwoglom/tconnectsync) by [@jwoglom](https://github.com/jwoglom).
-Originally forked from the [Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink) integration by [@yo-han](https://github.com/yo-han); v1.0.0 is a Tandem-only rewrite.
+Originally forked from the [Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink) integration by [@yo-han](https://github.com/yo-han); v2.0.0 is a Tandem-only rewrite.
