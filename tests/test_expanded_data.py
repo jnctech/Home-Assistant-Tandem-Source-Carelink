@@ -7,6 +7,8 @@ import base64
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
+from freezegun import freeze_time
+
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -719,7 +721,11 @@ class TestComputedInsulinSummary:
             _make_basal_delivery(6, rate=0.8, minutes_ago=0),
         ]
         data = _make_pump_events_data(events)
-        coordinator = await _setup_coordinator(hass, data)
+        # Freeze "now" to the event anchor so the coordinator's daily window and
+        # the BASE_TS-relative events share a calendar day (else a run straddling
+        # UTC midnight drops today's events from the daily totals).
+        with freeze_time(BASE_TS):
+            coordinator = await _setup_coordinator(hass, data)
 
         # Bolus total: 3.0 + 2.0 = 5.0
         assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL] == 5.0
@@ -739,7 +745,9 @@ class TestComputedInsulinSummary:
             _make_carbs_event(4, 20, minutes_ago=0),
         ]
         data = _make_pump_events_data(events)
-        coordinator = await _setup_coordinator(hass, data)
+        # Freeze "now" to the event anchor — see test_basic_insulin_summary.
+        with freeze_time(BASE_TS):
+            coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_CARBS] == 95  # 30+45+20
 
