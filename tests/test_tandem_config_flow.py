@@ -98,7 +98,7 @@ class TestUserStep:
 class TestValidateTandemInput:
     """Tests for the validate_tandem_input function."""
 
-    async def test_validate_tandem_input_success(self):
+    async def test_validate_tandem_input_success(self, hass: HomeAssistant):
         """A successful login returns the region-titled result and closes the client."""
         from custom_components.tandem.config_flow import validate_tandem_input
 
@@ -109,21 +109,40 @@ class TestValidateTandemInput:
             mock_client_class.return_value = mock_client
 
             result = await validate_tandem_input(
-                {"tandem_email": "user@test.com", "tandem_password": "password", "tandem_region": "EU"}
+                hass, {"tandem_email": "user@test.com", "tandem_password": "password", "tandem_region": "EU"}
             )
 
         assert result == {"title": "Tandem t:slim (EU)"}
         mock_client.login.assert_called_once()
         mock_client.close.assert_called_once()
 
-    async def test_validate_tandem_input_missing_credentials(self):
+    async def test_validate_tandem_input_injects_managed_session(self, hass: HomeAssistant):
+        """The client is built with Home Assistant's managed httpx client, not a self-made one."""
+        from custom_components.tandem.config_flow import validate_tandem_input
+
+        with (
+            patch("custom_components.tandem.config_flow.TandemSourceClient") as mock_client_class,
+            patch("custom_components.tandem.config_flow.get_async_client") as mock_get_client,
+        ):
+            mock_client_class.return_value = AsyncMock()
+            managed = object()
+            mock_get_client.return_value = managed
+
+            await validate_tandem_input(
+                hass, {"tandem_email": "user@test.com", "tandem_password": "password", "tandem_region": "EU"}
+            )
+
+        mock_get_client.assert_called_once_with(hass)
+        assert mock_client_class.call_args.kwargs["session"] is managed
+
+    async def test_validate_tandem_input_missing_credentials(self, hass: HomeAssistant):
         """Empty email/password raises InvalidAuth without calling the API."""
         from custom_components.tandem.config_flow import InvalidAuth, validate_tandem_input
 
         with pytest.raises(InvalidAuth):
-            await validate_tandem_input({"tandem_email": "", "tandem_password": "", "tandem_region": "EU"})
+            await validate_tandem_input(hass, {"tandem_email": "", "tandem_password": "", "tandem_region": "EU"})
 
-    async def test_validate_tandem_input_login_fails(self):
+    async def test_validate_tandem_input_login_fails(self, hass: HomeAssistant):
         """A TandemAuthError from login is mapped to InvalidAuth."""
         from custom_components.tandem.config_flow import InvalidAuth, validate_tandem_input
         from custom_components.tandem.exceptions import TandemAuthError
@@ -136,5 +155,5 @@ class TestValidateTandemInput:
 
             with pytest.raises(InvalidAuth):
                 await validate_tandem_input(
-                    {"tandem_email": "user@test.com", "tandem_password": "wrong", "tandem_region": "EU"}
+                    hass, {"tandem_email": "user@test.com", "tandem_password": "wrong", "tandem_region": "EU"}
                 )

@@ -8,8 +8,10 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.httpx_client import get_async_client
 
 from .const import CONF_EMAIL, CONF_PASSWORD, CONF_REGION, DOMAIN, PLATFORM_TANDEM, PLATFORM_TYPE, SCAN_INTERVAL
 from .exceptions import TandemAuthError
@@ -20,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 REGIONS = {"EU": "Europe", "US": "United States"}
 
 
-async def validate_tandem_input(data: dict[str, Any]) -> dict[str, Any]:
+async def validate_tandem_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate Tandem Source credentials by performing a login."""
     email = data.get(CONF_EMAIL, "").strip()
     password = data.get(CONF_PASSWORD, "")
@@ -29,7 +31,7 @@ async def validate_tandem_input(data: dict[str, Any]) -> dict[str, Any]:
     if not email or not password:
         raise InvalidAuth
 
-    client = TandemSourceClient(email, password, region)
+    client = TandemSourceClient(email, password, region, session=get_async_client(hass))
     try:
         await client.login()
     except TandemAuthError as err:
@@ -72,7 +74,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             user_input[PLATFORM_TYPE] = PLATFORM_TANDEM
             try:
-                info = await validate_tandem_input(user_input)
+                info = await validate_tandem_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -103,7 +105,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             full_config = {**entry.data, **user_input}
             try:
-                await validate_tandem_input(full_config)
+                await validate_tandem_input(self.hass, full_config)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -126,7 +128,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             full_config = {**entry.data, **user_input}
             try:
-                await validate_tandem_input(full_config)
+                await validate_tandem_input(self.hass, full_config)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:

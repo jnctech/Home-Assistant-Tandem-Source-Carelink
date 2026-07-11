@@ -41,6 +41,11 @@ USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 )
 
+# Per-request timeout (seconds). Applied on every call so behaviour is identical
+# whether we own the client or reuse Home Assistant's managed httpx client, whose
+# default timeout (5 s) is too short for the Tandem Source OIDC/report calls.
+REQUEST_TIMEOUT = 30.0
+
 
 # ── Binary pump event decoder ────────────────────────────────────────
 # The Tandem Source pumpevents API returns base64-encoded binary data.
@@ -502,7 +507,13 @@ class TandemSourceClient:
         },
     }
 
-    def __init__(self, email: str, password: str, region: str = "EU"):
+    def __init__(
+        self,
+        email: str,
+        password: str,
+        region: str = "EU",
+        session: httpx.AsyncClient | None = None,
+    ):
         self.email = email
         self.password = password
         self.region = region.upper()
@@ -516,14 +527,22 @@ class TandemSourceClient:
         self.account_id: str | None = None
         self.token_expires_at: float = 0
 
-        self._client: httpx.AsyncClient | None = None
+        # When a session is injected (Home Assistant's managed httpx client) we
+        # reuse it and never build or close our own — HA owns its lifecycle. Only
+        # when constructed standalone (tests, scripts) do we own a self-made client.
+        self._client: httpx.AsyncClient | None = session
+        self._owns_client: bool = session is None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the async HTTP client.
+        """Return the async HTTP client.
 
-        Creates the SSL context in an executor to avoid blocking the event loop
-        with load_verify_locations().
+        When Home Assistant's managed client was injected, reuse it verbatim —
+        never rebuild or close it. Otherwise lazily build our own, creating the SSL
+        context in an executor to avoid blocking the event loop with
+        load_verify_locations().
         """
+        if not self._owns_client:
+            return self._client  # type: ignore[return-value]  # injected, non-None by construction
         if self._client is None or self._client.is_closed:
             loop = asyncio.get_running_loop()
 
@@ -570,7 +589,11 @@ class TandemSourceClient:
 
         # Step 1: Initialize session (establish cookies)
         try:
-            await client.get(self.LOGIN_PAGE_URL)
+            await client.get(
+                self.LOGIN_PAGE_URL,
+                headers=self._login_headers(),
+                timeout=REQUEST_TIMEOUT,
+            )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Cannot reach login page: {e}") from e
 
@@ -579,7 +602,8 @@ class TandemSourceClient:
             login_resp = await client.post(
                 self.urls["LOGIN_API"],
                 json={"username": self.email, "password": self.password},
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Login request failed: {e}") from e
@@ -609,7 +633,8 @@ class TandemSourceClient:
         try:
             auth_resp = await client.get(
                 self.urls["AUTHORIZE"] + "?" + urlencode(auth_params),
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Authorization request failed: {e}") from e
@@ -638,7 +663,8 @@ class TandemSourceClient:
             token_resp = await client.post(
                 self.urls["TOKEN"],
                 data=token_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers=self._login_headers({"Content-Type": "application/x-www-form-urlencoded"}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Token exchange failed: {e}") from e
@@ -698,6 +724,18 @@ class TandemSourceClient:
             self.account_id,
         )
 
+    def _login_headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+        """Headers for the unauthenticated OIDC login requests.
+
+        Carries the User-Agent explicitly rather than relying on a client-level
+        default, so the login flow behaves identically on Home Assistant's managed
+        client (which has no default UA) as on our self-made one.
+        """
+        headers = {"User-Agent": USER_AGENT}
+        if extra:
+            headers.update(extra)
+        return headers
+
     def _api_headers(self) -> dict:
         """Get headers for authenticated API requests."""
         return {
@@ -716,7 +754,7 @@ class TandemSourceClient:
 
         for attempt in range(_retries + 1):
             try:
-                resp = await client.get(url, headers=self._api_headers())
+                resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
                 break
             except (
                 httpx.ConnectError,
@@ -747,7 +785,7 @@ class TandemSourceClient:
             await self.login()
             if not self.access_token:
                 raise TandemAuthError("Re-authentication succeeded but no token obtained")
-            resp = await client.get(url, headers=self._api_headers())
+            resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
 
         if resp.status_code != 200:
             raise TandemApiError(f"API GET {url} failed ({resp.status_code}): {resp.text[:300]}")
@@ -1094,7 +1132,13 @@ class TandemSourceClient:
         return await self.get_pumper_info()
 
     async def close(self):
-        """Close the HTTP client."""
+        """Close the HTTP client we own.
+
+        A no-op when the client was injected by Home Assistant — closing the
+        shared managed client would break every other consumer of it.
+        """
+        if not self._owns_client:
+            return
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None

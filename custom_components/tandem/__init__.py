@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.httpx_client import get_async_client
 
 from .const import (
     CONF_EMAIL,
@@ -70,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             email=config[CONF_EMAIL],
             password=config[CONF_PASSWORD],
             region=config.get(CONF_REGION, "EU"),
+            session=get_async_client(hass),
         )
     except Exception as err:
         raise ConfigEntryNotReady(f"Failed to initialise Tandem client: {err}") from err

@@ -187,6 +187,36 @@ class TestTandemSourceClientClose:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# TandemSourceClient injected (Home Assistant managed) session
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTandemSourceClientInjectedSession:
+    """An injected session is reused verbatim and never closed by us."""
+
+    async def test_get_client_returns_injected_session(self):
+        """_get_client returns the injected client without building its own."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        assert client._owns_client is False
+        assert await client._get_client() is injected
+
+    async def test_close_does_not_close_injected_session(self):
+        """close() must not aclose a Home-Assistant-owned shared client."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        await client.close()
+
+        injected.aclose.assert_not_called()
+        # The injected reference is retained (not nulled) so the client stays usable.
+        assert client._client is injected
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # TandemSourceClient PKCE helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
