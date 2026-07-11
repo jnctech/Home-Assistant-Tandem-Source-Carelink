@@ -2,84 +2,19 @@
 
 from __future__ import annotations
 
-import sys
-import types
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
 from homeassistant.core import HomeAssistant
 
 from conftest import make_tandem_coordinator
 
 from custom_components.tandem.const import DOMAIN
 
-
-# -- Mock stat data classes ------------------------------------------------
-
-
-@dataclass
-class _MockStatisticData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticData."""
-
-    start: Any = None
-    mean: Any = None
-    min: Any = None
-    max: Any = None
-    state: Any = None
-    sum: Any = None
-
-
-@dataclass
-class _MockStatisticMetaData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticMetaData."""
-
-    has_mean: bool = True
-    has_sum: bool = False
-    name: str = ""
-    source: str = ""
-    statistic_id: str = ""
-    unit_of_measurement: str = ""
-
-
-# -- Fixtures --------------------------------------------------------------
-
-
-@pytest.fixture
-def mock_import():
-    """Install fake recorder modules and yield the mock async_import_statistics.
-
-    Automatically restores original sys.modules on teardown.
-    """
-    mock_fn = MagicMock()
-
-    recorder_mod = types.ModuleType("homeassistant.components.recorder")
-    stats_mod = types.ModuleType("homeassistant.components.recorder.statistics")
-    models_mod = types.ModuleType("homeassistant.components.recorder.models")
-
-    stats_mod.async_import_statistics = mock_fn
-    models_mod.StatisticData = _MockStatisticData
-    models_mod.StatisticMetaData = _MockStatisticMetaData
-
-    keys = [
-        "homeassistant.components.recorder",
-        "homeassistant.components.recorder.statistics",
-        "homeassistant.components.recorder.models",
-    ]
-    saved = {k: sys.modules.get(k) for k in keys}
-    sys.modules["homeassistant.components.recorder"] = recorder_mod
-    sys.modules["homeassistant.components.recorder.statistics"] = stats_mod
-    sys.modules["homeassistant.components.recorder.models"] = models_mod
-
-    yield mock_fn
-
-    for k in keys:
-        if saved[k] is None:
-            sys.modules.pop(k, None)
-        else:
-            sys.modules[k] = saved[k]
+# The ``mock_import`` fixture (shared, in conftest.py) patches the real recorder
+# ``async_import_statistics`` and keeps HA's real StatisticMetaData/StatisticData
+# in play — captured calls carry real dicts, so assert with subscript access.
 
 
 # -- Event factories -------------------------------------------------------
@@ -179,13 +114,13 @@ async def _make_coordinator(hass: HomeAssistant):
 
 def _imported_stat_ids(mock_import: MagicMock) -> set[str]:
     """Return the set of statistic_id values from all async_import_statistics calls."""
-    return {c[0][1].statistic_id for c in mock_import.call_args_list}
+    return {c[0][1]["statistic_id"] for c in mock_import.call_args_list}
 
 
 def _find_stat_call(mock_import: MagicMock, stat_id_suffix: str):
     """Find the import call for a given statistic_id suffix and return (meta, stats)."""
     full_id = f"sensor.{DOMAIN}_{stat_id_suffix}"
-    call = next(c for c in mock_import.call_args_list if c[0][1].statistic_id == full_id)
+    call = next(c for c in mock_import.call_args_list if c[0][1]["statistic_id"] == full_id)
     return call[0][1], call[0][2]
 
 
@@ -208,9 +143,9 @@ class TestCarbStatisticsImport:
 
         assert mock_import.call_count == 1
         meta, stats = _find_stat_call(mock_import, "meal_carbs")
-        assert meta.unit_of_measurement == "g"
-        assert meta.has_mean is True
-        assert meta.has_sum is False
+        assert meta["unit_of_measurement"] == "g"
+        assert meta["has_mean"] is True
+        assert meta["has_sum"] is False
         assert len(stats) == 2
 
     async def test_carb_stat_values_correct(self, hass: HomeAssistant, mock_import):
@@ -219,8 +154,8 @@ class TestCarbStatisticsImport:
         await coordinator._import_statistics([_make_carb_event(seq=1, carbs=30.0)])
 
         _, stats = _find_stat_call(mock_import, "meal_carbs")
-        assert stats[0].mean == 30.0
-        assert stats[0].state == 30.0
+        assert stats[0]["mean"] == 30.0
+        assert stats[0]["state"] == 30.0
 
     async def test_zero_carbs_excluded(self, hass: HomeAssistant, mock_import):
         """Carb events with zero or missing carbs are not imported."""
@@ -258,9 +193,9 @@ class TestBolusStatisticsImport:
 
         assert f"sensor.{DOMAIN}_total_bolus" in _imported_stat_ids(mock_import)
         meta, stats = _find_stat_call(mock_import, "total_bolus")
-        assert meta.unit_of_measurement == "units"
-        assert meta.has_mean is True
-        assert meta.has_sum is False
+        assert meta["unit_of_measurement"] == "units"
+        assert meta["has_mean"] is True
+        assert meta["has_sum"] is False
         assert len(stats) == 2
 
     async def test_bolus_stat_values_correct(self, hass: HomeAssistant, mock_import):
@@ -269,8 +204,8 @@ class TestBolusStatisticsImport:
         await coordinator._import_statistics([_make_bolus_completed_event(seq=1, insulin_delivered=4.75)])
 
         _, stats = _find_stat_call(mock_import, "total_bolus")
-        assert stats[0].mean == 4.75
-        assert stats[0].state == 4.75
+        assert stats[0]["mean"] == 4.75
+        assert stats[0]["state"] == 4.75
 
     async def test_incomplete_bolus_excluded(self, hass: HomeAssistant, mock_import):
         """Bolus events with completion_status != 3 are NOT imported as bolus stats."""
@@ -356,9 +291,9 @@ class TestCorrectionBolusStatisticsImport:
 
         assert f"sensor.{DOMAIN}_correction_bolus" in _imported_stat_ids(mock_import)
         meta, stats = _find_stat_call(mock_import, "correction_bolus")
-        assert meta.unit_of_measurement == "units"
-        assert meta.has_mean is True
-        assert meta.has_sum is False
+        assert meta["unit_of_measurement"] == "units"
+        assert meta["has_mean"] is True
+        assert meta["has_sum"] is False
         assert len(stats) == 1
 
     async def test_correction_bolus_value_converted_from_milliunits(self, hass: HomeAssistant, mock_import):
@@ -367,8 +302,8 @@ class TestCorrectionBolusStatisticsImport:
         await coordinator._import_statistics([_make_bolus_delivery_event(seq=1, correction_mu=3500)])
 
         _, stats = _find_stat_call(mock_import, "correction_bolus")
-        assert stats[0].mean == 3.5
-        assert stats[0].state == 3.5
+        assert stats[0]["mean"] == 3.5
+        assert stats[0]["state"] == 3.5
 
     async def test_incomplete_delivery_excluded(self, hass: HomeAssistant, mock_import):
         """delivery_status != 0 (in-progress) is excluded from correction stats."""

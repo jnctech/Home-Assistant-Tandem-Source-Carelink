@@ -12,6 +12,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
@@ -55,11 +56,10 @@ from .tandem_api import (
     EVT_TUBING_FILLED,
     EVT_USB_CONNECTED,
     EVT_USB_DISCONNECTED,
-    TandemApiError,
-    TandemAuthError,
     TandemSourceClient,
     parse_dotnet_date,
 )
+from .exceptions import TandemApiError, TandemAuthError
 from .const import (
     CGM_STATUS_MAP,
     DEVICE_PUMP_MANUFACTURER,
@@ -204,9 +204,9 @@ class TandemCoordinator(DataUpdateCoordinator):
         self._cumulative_delivered: float = 0.0
         self._last_delivery_seq: int = 0
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         _LOGGER.debug("TandemCoordinator: Starting _async_update_data")
-        data = {}
+        data: dict[str, Any] = {}
 
         try:
             await self.client.login()
@@ -394,7 +394,7 @@ class TandemCoordinator(DataUpdateCoordinator):
 
         return data
 
-    def _parse_therapy_timeline(self, timeline: dict | None, data: dict) -> None:
+    def _parse_therapy_timeline(self, timeline: dict[str, Any] | None, data: dict[str, Any]) -> None:
         """Parse therapy timeline data into sensor values."""
         # Keys only populated by _parse_pump_events — always default to UNAVAILABLE
         # when falling back to this path so sensors show unavailable, not unknown.
@@ -593,7 +593,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_BASAL_RATE] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS] = UNAVAILABLE
 
-    def _parse_pump_events(self, pump_events: list[dict], data: dict) -> None:
+    def _parse_pump_events(self, pump_events: list[dict[str, Any]], data: dict[str, Any]) -> None:
         """Parse decoded pump events into sensor values.
 
         Events are pre-decoded from binary format by decode_pump_events().
@@ -612,31 +612,31 @@ class TandemCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Tandem: Parsing %d decoded pump events", len(pump_events))
 
         # Categorise ALL events by type — sensor values always use full set
-        cgm_readings: list[dict] = []
-        bolus_completed: list[dict] = []
-        bolex_completed: list[dict] = []
-        bolus_delivery: list[dict] = []
-        basal_rate_changes: list[dict] = []
-        basal_delivery: list[dict] = []
-        suspend_resume: list[dict] = []
-        bg_readings: list[dict] = []
-        cartridge_fills: list[dict] = []
-        carbs_entered: list[dict] = []
-        cannula_fills: list[dict] = []
-        tubing_fills: list[dict] = []
-        user_mode_changes: list[dict] = []
-        pcm_changes: list[dict] = []
-        daily_basal_events: list[dict] = []
-        shelf_mode_events: list[dict] = []
-        usb_events: list[dict] = []
-        alert_events: list[dict] = []
-        alarm_events: list[dict] = []
-        daily_status_events: list[dict] = []
-        bolus_req_msg1: list[dict] = []
-        bolus_req_msg2: list[dict] = []
-        bolus_req_msg3: list[dict] = []
-        plgs_events: list[dict] = []
-        new_day_events: list[dict] = []
+        cgm_readings: list[dict[str, Any]] = []
+        bolus_completed: list[dict[str, Any]] = []
+        bolex_completed: list[dict[str, Any]] = []
+        bolus_delivery: list[dict[str, Any]] = []
+        basal_rate_changes: list[dict[str, Any]] = []
+        basal_delivery: list[dict[str, Any]] = []
+        suspend_resume: list[dict[str, Any]] = []
+        bg_readings: list[dict[str, Any]] = []
+        cartridge_fills: list[dict[str, Any]] = []
+        carbs_entered: list[dict[str, Any]] = []
+        cannula_fills: list[dict[str, Any]] = []
+        tubing_fills: list[dict[str, Any]] = []
+        user_mode_changes: list[dict[str, Any]] = []
+        pcm_changes: list[dict[str, Any]] = []
+        daily_basal_events: list[dict[str, Any]] = []
+        shelf_mode_events: list[dict[str, Any]] = []
+        usb_events: list[dict[str, Any]] = []
+        alert_events: list[dict[str, Any]] = []
+        alarm_events: list[dict[str, Any]] = []
+        daily_status_events: list[dict[str, Any]] = []
+        bolus_req_msg1: list[dict[str, Any]] = []
+        bolus_req_msg2: list[dict[str, Any]] = []
+        bolus_req_msg3: list[dict[str, Any]] = []
+        plgs_events: list[dict[str, Any]] = []
+        new_day_events: list[dict[str, Any]] = []
 
         for evt in pump_events:
             eid = evt.get("event_id")
@@ -785,7 +785,7 @@ class TandemCoordinator(DataUpdateCoordinator):
                     roc = latest.get("rate_of_change")
                     data[TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE] = round(roc, 1) if roc is not None else UNAVAILABLE
                     cgm_status_code = latest.get("status")
-                    cgm_status = CGM_STATUS_MAP.get(cgm_status_code)
+                    cgm_status = CGM_STATUS_MAP.get(cgm_status_code) if cgm_status_code is not None else None
                     if cgm_status is None and cgm_status_code is not None:
                         _LOGGER.debug("Tandem: Unknown CGM status code %r — update CGM_STATUS_MAP", cgm_status_code)
                     data[TANDEM_SENSOR_KEY_CGM_STATUS] = cgm_status if cgm_status is not None else UNAVAILABLE
@@ -1179,7 +1179,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             if bolus_req_msg3:
                 tz = ZoneInfo(self.timezone)
                 # Build joined records keyed by bolus_id
-                bolus_calc: dict[int, dict] = {}
+                bolus_calc: dict[int, dict[str, Any]] = {}
                 for msg in bolus_req_msg1:
                     bid = msg.get("bolus_id")
                     if bid is not None:
@@ -1299,9 +1299,9 @@ class TandemCoordinator(DataUpdateCoordinator):
 
     def _parse_alert_alarm_events(
         self,
-        alert_events: list[dict],
-        alarm_events: list[dict],
-        data: dict,
+        alert_events: list[dict[str, Any]],
+        alarm_events: list[dict[str, Any]],
+        data: dict[str, Any],
     ) -> None:
         """Parse alert and alarm events into sensor values.
 
@@ -1316,7 +1316,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         # ── Alert sensors (events 4 / 26) ────────────────────────────
         # Track which alert IDs are currently active (activated but not cleared).
         # Events are pre-sorted by timestamp so we replay in order.
-        active_alerts: dict[int, dict] = {}
+        active_alerts: dict[int, dict[str, Any]] = {}
         for evt in alert_events:
             if evt["event_name"] == "AlertActivated":
                 active_alerts[evt["alert_id"]] = evt
@@ -1353,7 +1353,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_LAST_ALERT] = UNAVAILABLE
 
         # ── Alarm sensors (events 5, 6 / 28) ─────────────────────────
-        active_alarms: dict[int, dict] = {}
+        active_alarms: dict[int, dict[str, Any]] = {}
         for evt in alarm_events:
             if evt["event_name"] in ("AlarmActivated", "MalfunctionActivated"):
                 active_alarms[evt["alert_id"]] = evt
@@ -1390,7 +1390,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         # ── Active count (alerts + alarms combined) ───────────────────
         data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = len(active_alerts) + len(active_alarms)
 
-    def _parse_dashboard_summary(self, summary: dict | None, data: dict) -> None:
+    def _parse_dashboard_summary(self, summary: dict[str, Any] | None, data: dict[str, Any]) -> None:
         """Parse dashboard summary into sensor values."""
         if not summary:
             data[TANDEM_SENSOR_KEY_AVG_GLUCOSE_MMOL] = UNAVAILABLE
@@ -1433,7 +1433,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_TIME_IN_RANGE] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_CGM_USAGE] = UNAVAILABLE
 
-    def _parse_pump_settings(self, last_upload_obj: dict | None, data: dict) -> None:
+    def _parse_pump_settings(self, last_upload_obj: dict[str, Any] | None, data: dict[str, Any]) -> None:
         """Extract pump settings from metadata.lastUpload.settings.
 
         The lastUpload field is a dict: {uploadId, lastUploadedAt, settings}.
@@ -1484,7 +1484,7 @@ class TandemCoordinator(DataUpdateCoordinator):
 
                 # Build profile attributes: schedule segments, insulin duration
                 segments = active_profile.get("tDependentSegs") or []
-                schedule = []
+                schedule: list[dict[str, Any]] = []
                 for seg in segments:
                     rate = seg.get("basalRate", 0)
                     if rate == 0 and seg.get("startTime", 0) == 0 and not schedule:
@@ -1576,7 +1576,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             if TANDEM_SENSOR_KEY_ACTIVE_PROFILE_ATTRS not in data:
                 data[TANDEM_SENSOR_KEY_ACTIVE_PROFILE_ATTRS] = {}
 
-    def _compute_cgm_summary(self, cgm_readings: list[dict], data: dict) -> None:
+    def _compute_cgm_summary(self, cgm_readings: list[dict[str, Any]], data: dict[str, Any]) -> None:
         """Compute CGM summary statistics from raw glucose readings.
 
         Replaces the broken dashboard_summary API by computing locally:
@@ -1655,12 +1655,12 @@ class TandemCoordinator(DataUpdateCoordinator):
 
     def _compute_insulin_summary(
         self,
-        bolus_completed: list[dict],
-        bolex_completed: list[dict],
-        basal_delivery: list[dict],
-        basal_rate_changes: list[dict],
-        carbs_entered: list[dict],
-        data: dict,
+        bolus_completed: list[dict[str, Any]],
+        bolex_completed: list[dict[str, Any]],
+        basal_delivery: list[dict[str, Any]],
+        basal_rate_changes: list[dict[str, Any]],
+        carbs_entered: list[dict[str, Any]],
+        data: dict[str, Any],
     ) -> None:
         """Compute daily insulin summary from bolus and basal events.
 
@@ -1681,7 +1681,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         tz = ZoneInfo(self.timezone)
         today = datetime.now(tz).date()
 
-        def _today_only(events: list[dict]) -> list[dict]:
+        def _today_only(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             result = []
             for e in events:
                 ts = e.get("timestamp")
@@ -1763,11 +1763,11 @@ class TandemCoordinator(DataUpdateCoordinator):
 
     def _compute_estimated_remaining_insulin(
         self,
-        cartridge_fills: list[dict],
-        bolus_completed: list[dict],
-        bolex_completed: list[dict],
-        basal_delivery: list[dict],
-        data: dict,
+        cartridge_fills: list[dict[str, Any]],
+        bolus_completed: list[dict[str, Any]],
+        bolex_completed: list[dict[str, Any]],
+        basal_delivery: list[dict[str, Any]],
+        data: dict[str, Any],
     ) -> None:
         """Estimate remaining insulin from fill volume minus cumulative deliveries.
 
@@ -1825,7 +1825,7 @@ class TandemCoordinator(DataUpdateCoordinator):
                 max_new_seq = max(max_new_seq, seq)
 
         # Basal: only count new delivery events (seq > local_del_seq)
-        new_basal_events = [b for b in basal_delivery if b.get("seq") is not None and b.get("seq") > local_del_seq]
+        new_basal_events = [b for b in basal_delivery if (bseq := b.get("seq")) is not None and bseq > local_del_seq]
         if new_basal_events:
             sorted_basal = sorted(new_basal_events, key=lambda e: e.get("seq", 0))
             for i in range(len(sorted_basal) - 1):
@@ -1877,7 +1877,7 @@ class TandemCoordinator(DataUpdateCoordinator):
 
     # ── Long-term statistics import ──────────────────────────────────
 
-    async def _import_statistics(self, pump_events: list[dict]) -> None:
+    async def _import_statistics(self, pump_events: list[dict[str, Any]]) -> None:
         """Import pump events as HA long-term statistics.
 
         Creates correctly-timestamped 5-minute statistics entries so
@@ -1889,6 +1889,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             )
             from homeassistant.components.recorder.models import (
                 StatisticData,
+                StatisticMeanType,
                 StatisticMetaData,
             )
         except ImportError:
@@ -2031,11 +2032,13 @@ class TandemCoordinator(DataUpdateCoordinator):
             try:
                 meta = StatisticMetaData(
                     has_mean=True,
+                    mean_type=StatisticMeanType.ARITHMETIC,
                     has_sum=False,
                     name=name,
                     source="recorder",
                     statistic_id=f"{entity_prefix}_{stat_id_suffix}",
                     unit_of_measurement=unit,
+                    unit_class=None,
                 )
                 async_import_statistics(self.hass, meta, stats)
                 _LOGGER.info("[Tandem] Imported %d %s statistics", len(stats), log_label)

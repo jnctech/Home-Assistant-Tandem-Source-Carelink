@@ -12,9 +12,9 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntityDescription,
 )
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 
-TANDEM_BINARY_SENSORS: tuple = ()
+TANDEM_BINARY_SENSORS: tuple[BinarySensorEntityDescription, ...] = ()
 
 # STANDARD-stable-anchor-reconciliation rule 3 (relayed): the silent no-op
 # (stale decision inputs going unavailable) must become an operator-visible

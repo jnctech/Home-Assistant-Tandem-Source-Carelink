@@ -4,6 +4,35 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260711-strict-typing — Strict typing pass (P4 Platinum) + test-double fidelity refactor
+**Date:** 2026-07-11
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** In Review
+
+### What changed
+| Area | Change |
+|------|--------|
+| mypy | `[tool.mypy] strict = true`; dropped the `coordinator`/`tandem_api` `ignore_errors` override. All 14 modules pass `mypy --strict` (~150 errors resolved). |
+| deps | `types-aiofiles==24.1.0.20240626` added; test image rebuilt. |
+| typing (real fixes, not just annotations) | `DeviceInfo` imported from `homeassistant.helpers.device_registry` (not the non-exporting `helpers.entity`); `EntityCategory` from `homeassistant.const`; `config_flow` returns `ConfigFlowResult` + uses `_get_reconfigure_entry()` (removes an unguarded `None.data` path); `TandemEntity(CoordinatorEntity[TandemCoordinator])` generic + per-subclass `sensor_description` narrowing; **`StatisticMetaData` now passes required `mean_type=StatisticMeanType.ARITHMETIC` + `unit_class`** (recorder API added these — was silently missing); `id_token` None-guard in JWT decode; `binascii.Error` (was `base64.binascii`); gather-unpack pre-declarations. |
+| exceptions | `TandemApiError`/`TandemAuthError` imported from `.exceptions` (no longer re-exported via `tandem_api`). |
+| CI | New `typecheck` job (`mypy --strict`, py3.13); **all CI/dev Python bumped 3.12 → 3.13** (ci.yml, sonarcloud.yml, CONTRIBUTING.md, .devcontainer/Dockerfile) — HA 2026.2 requires 3.13, closes the toolchain skew. |
+| tests (operator: "use proper tests") | The 3 statistics test files faked the entire `homeassistant.components.recorder` module via `sys.modules` injection + hand-rolled stand-ins — which is exactly why the `mean_type`/`unit_class` drift was invisible. Replaced with a shared `mock_import` fixture (conftest) that patches only the **real** `async_import_statistics` boundary and keeps HA's real `StatisticMetaData`/`StatisticData`; assertions use subscript access. Net −250 lines of scaffolding. |
+| safety | `.gitignore` now blocks `*_diagnostics_*.json` (device-PII dumps — previously unmatched gap). |
+
+### Why
+Completes the P4 Platinum `strict-typing` gap (tracked `docs/quality-gates.md`; STANDARDS-tandem §4/§8 had it as TARGET ◐). The test refactor makes recorder-API contract drift fail loudly instead of being masked by a stale stand-in — seed for the estate `test-double-fidelity` amendment oob is adopting into `STANDARD-code-quality §1`.
+
+### Verification (remote docker 3.13)
+| Gate | Result |
+|------|--------|
+| mypy --strict (14 modules) | ✅ clean |
+| Tests | ✅ 376 passed + 140 snapshots |
+| ruff check / format | ✅ clean |
+| bandit / gitleaks | ✅ clean |
+
+---
+
 ## CR-260710-greenfield-tandem-v1 — Greenfield Tandem-only V1 (domain carelink → tandem)
 **Date:** 2026-07-10
 **Branch:** `claude/domain-codebase-refactor-fgc4fv`

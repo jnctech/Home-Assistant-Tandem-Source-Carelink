@@ -11,6 +11,7 @@ import functools
 import json
 import logging
 from datetime import date, datetime, timedelta, timezone
+from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -162,7 +163,7 @@ async def _handle_import_history(hass: HomeAssistant, entry_id: str, call: Servi
     # Fetch events in 7-day chunks to avoid API timeouts on large date ranges
     chunk_start = date.fromisoformat(start_str)
     chunk_end_limit = date.fromisoformat(end_str)
-    all_events: list[dict] = []
+    all_events: list[dict[str, Any]] = []
 
     while chunk_start <= chunk_end_limit:
         chunk_end = min(chunk_start + timedelta(days=6), chunk_end_limit)
@@ -213,7 +214,7 @@ async def _handle_capture_diagnostics(hass: HomeAssistant, entry_id: str, call: 
         _LOGGER.error("[Tandem] capture_diagnostics: authentication failed: %s", err)
         return
 
-    snapshot: dict = {"captured_at": datetime.now(timezone.utc).isoformat()}
+    snapshot: dict[str, Any] = {"captured_at": datetime.now(timezone.utc).isoformat()}
 
     # 1. Raw pump metadata (contains schema fields we need to document)
     try:
@@ -266,7 +267,7 @@ async def _handle_capture_diagnostics(hass: HomeAssistant, entry_id: str, call: 
                 }
                 # Include sample of each event type (first occurrence)
                 seen_types: set[str] = set()
-                samples: list[dict] = []
+                samples: list[dict[str, Any]] = []
                 for evt in events:
                     name = evt.get("event_name", "unknown")
                     if name not in seen_types:
@@ -284,7 +285,7 @@ async def _handle_capture_diagnostics(hass: HomeAssistant, entry_id: str, call: 
 
     # 4. Current sensor state (keys and their types/values)
     if coordinator.data:
-        sensor_state: dict = {}
+        sensor_state: dict[str, Any] = {}
         for k, v in coordinator.data.items():
             if v is None:
                 sensor_state[k] = "UNAVAILABLE"
@@ -308,7 +309,7 @@ async def _handle_capture_diagnostics(hass: HomeAssistant, entry_id: str, call: 
         # aiofiles not available — fall back to sync write in executor
         import asyncio
 
-        def _write():
+        def _write() -> None:
             with open(out_path, "w") as f:
                 json.dump(snapshot, f, indent=2, default=str)
 

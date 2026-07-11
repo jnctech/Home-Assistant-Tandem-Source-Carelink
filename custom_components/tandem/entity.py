@@ -15,19 +15,27 @@ intent (const.py:667-674) and makes it the single source of truth.
 
 from __future__ import annotations
 
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from typing import TYPE_CHECKING
+
+from homeassistant.const import EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import EntityDescription
+from homeassistant.helpers.typing import UndefinedType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTRIBUTION, DOMAIN
 from .helpers import is_data_stale, pump_device_info
 from .sensor_types import TANDEM_SENSORS_ALWAYS_AVAILABLE
 
+if TYPE_CHECKING:
+    from .coordinator import TandemCoordinator
+
 # The coordinator centralises all polling; entity updates perform no per-entity
 # device I/O, so no parallelism limit is needed.
 PARALLEL_UPDATES = 0
 
 
-class TandemEntity(CoordinatorEntity):
+class TandemEntity(CoordinatorEntity["TandemCoordinator"]):
     """Base entity for all Tandem platforms.
 
     List this class first in a platform entity's MRO so its property definitions
@@ -38,7 +46,9 @@ class TandemEntity(CoordinatorEntity):
     _attr_has_entity_name = True
     _attr_attribution = ATTRIBUTION
 
-    def __init__(self, coordinator, sensor_description) -> None:
+    sensor_description: EntityDescription
+
+    def __init__(self, coordinator: TandemCoordinator, sensor_description: EntityDescription) -> None:
         """Store the coordinator and the entity description."""
         super().__init__(coordinator)
         self.coordinator = coordinator
@@ -50,7 +60,7 @@ class TandemEntity(CoordinatorEntity):
         return pump_device_info(self.coordinator)
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | UndefinedType | None:
         """Return the entity name."""
         return self.sensor_description.name
 

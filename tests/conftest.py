@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -27,6 +27,31 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
     """Return a syrupy snapshot assertion using the HA extension (.ambr files)."""
     return snapshot.use_extension(HomeAssistantSnapshotExtension)
+
+
+# ── Recorder statistics capture ───────────────────────────────────────────
+
+
+@pytest.fixture
+def mock_import():
+    """Patch the real recorder ``async_import_statistics`` and yield the mock.
+
+    Deliberately keeps Home Assistant's real ``StatisticMetaData`` /
+    ``StatisticData`` / ``StatisticMeanType`` in play — only the side-effectful
+    import boundary is intercepted. Substituting fake recorder modules (the old
+    approach) hid the real TypedDict contract, so when the recorder API added the
+    required ``mean_type`` / ``unit_class`` keys the tests kept passing against a
+    stale stand-in. Patching the real symbol means such a drift fails loudly.
+
+    Captured calls carry the real ``StatisticMetaData``/``StatisticData`` dicts,
+    so assert with subscript access (``meta["statistic_id"]``, ``stats[0]["mean"]``).
+    """
+    mock = MagicMock()
+    with patch(
+        "homeassistant.components.recorder.statistics.async_import_statistics",
+        mock,
+    ):
+        yield mock
 
 
 # ── Config entry fixtures ─────────────────────────────────────────────────

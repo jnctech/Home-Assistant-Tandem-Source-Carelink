@@ -10,8 +10,13 @@ so a silently-unavailable glucose/insulin decision-input is never invisible.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -19,6 +24,9 @@ from .binary_sensor_types import DATA_STALE, TANDEM_BINARY_SENSORS
 from .coordinator import TandemConfigEntry
 from .entity import PARALLEL_UPDATES, TandemEntity  # noqa: F401  (PARALLEL_UPDATES re-exported for HA)
 from .helpers import is_data_stale
+
+if TYPE_CHECKING:
+    from .coordinator import TandemCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +46,8 @@ async def async_setup_entry(
 
 class TandemBinarySensor(TandemEntity, BinarySensorEntity):
     """A Tandem binary sensor backed by a coordinator data key."""
+
+    sensor_description: BinarySensorEntityDescription
 
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
@@ -61,7 +71,7 @@ class TandemDataStaleBinarySensor(TandemEntity, BinarySensorEntity):
     operator-visible amber. See STANDARD-stable-anchor-reconciliation rule 3.
     """
 
-    def __init__(self, coordinator) -> None:
+    def __init__(self, coordinator: TandemCoordinator) -> None:
         """Bind the fixed DATA_STALE description."""
         super().__init__(coordinator, DATA_STALE)
 

@@ -181,6 +181,8 @@ tandem_api_response.json
 carelink_api_response.json
 *_api_response.json
 api_debug_*.json
+# Local pump diagnostics dumps (capture_diagnostics service) — contain device PII
+*_diagnostics_*.json
 # Exception: sanitised test fixtures in tests/ are safe to commit
 !tests/fixtures/*.json
 

@@ -18,16 +18,7 @@ show_missing = true
 
 [tool.mypy]
 python_version = "3.13"
-# Strict typing is the Platinum target (inject-websession + async-dep already
-# met/possible). Rolled in incrementally: the small house-layout modules are
-# typed; the large research modules moved verbatim (coordinator, tandem_api)
-# are exempted below until their dedicated typing pass so the gate stays honest.
-warn_unused_ignores = true
-warn_redundant_casts = true
-
-[[tool.mypy.overrides]]
-module = [
-    "custom_components.tandem.coordinator",
-    "custom_components.tandem.tandem_api",
-]
-ignore_errors = true
+# Strict typing is the Platinum target (HA Quality Scale `strict-typing` rule).
+# The whole package — including the large research modules (coordinator,
+# tandem_api) — is checked under mypy --strict with no per-module exemptions.
+strict = true

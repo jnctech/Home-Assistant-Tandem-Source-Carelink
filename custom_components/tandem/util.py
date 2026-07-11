@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from typing import Any
 
 # Fields containing personally identifiable information that should be redacted.
 # Note: "name" is intentionally broad — it catches pumper_info.name (full name)
@@ -34,7 +35,7 @@ PII_FIELDS = {
 }
 
 
-def sanitize_for_logging(data, depth=0):
+def sanitize_for_logging(data: Any, depth: int = 0) -> Any:
     """Recursively sanitize data by redacting PII fields for safe logging."""
     if depth > 10:  # Prevent infinite recursion
         return "[MAX_DEPTH]"
@@ -45,7 +46,7 @@ def sanitize_for_logging(data, depth=0):
     return data
 
 
-def convert_date_to_isodate(date):
+def convert_date_to_isodate(date: str) -> datetime:
     date_iso = re.sub(r"\.\d{3}Z$", "+00:00", date)
     dt = datetime.fromisoformat(date_iso)
     # Normalize any UTC offset to UTC before stripping tzinfo so the resulting

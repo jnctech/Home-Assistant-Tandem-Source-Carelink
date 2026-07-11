@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.httpx_client import get_async_client
 
@@ -54,7 +55,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _schema(self, defaults: dict[str, Any] | None = None, *, include_auth: bool = True) -> vol.Schema:
         """Build the Tandem config schema."""
         defaults = defaults or {}
-        schema: dict = {}
+        schema: dict[Any, Any] = {}
         if include_auth:
             schema.update(
                 {
@@ -68,7 +69,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return vol.Schema(schema)
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial (and only) configuration step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -91,11 +92,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="user", data_schema=self._schema(user_input), errors=errors)
 
-    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Handle reauth triggered by ConfigEntryAuthFailed."""
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle reauth credential entry."""
         errors: dict[str, str] = {}
         entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
@@ -120,10 +121,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="reauth_confirm", data_schema=self._schema(dict(entry.data)), errors=errors)
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle reconfiguration of the integration."""
         errors: dict[str, str] = {}
-        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        entry = self._get_reconfigure_entry()
 
         if user_input is not None:
             full_config = {**entry.data, **user_input}

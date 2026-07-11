@@ -2,84 +2,18 @@
 
 from __future__ import annotations
 
-import sys
-import types
-from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
-import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tandem.const import DOMAIN
 
-
-# -- Mock stat data classes ------------------------------------------------
-
-
-@dataclass
-class _MockStatisticData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticData."""
-
-    start: Any = None
-    mean: Any = None
-    min: Any = None
-    max: Any = None
-    state: Any = None
-    sum: Any = None
-
-
-@dataclass
-class _MockStatisticMetaData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticMetaData."""
-
-    has_mean: bool = True
-    has_sum: bool = False
-    name: str = ""
-    source: str = ""
-    statistic_id: str = ""
-    unit_of_measurement: str = ""
-
-
-# -- Fixture ---------------------------------------------------------------
-
-
-@pytest.fixture
-def mock_import():
-    """Install fake recorder modules and yield the mock async_import_statistics.
-
-    Automatically restores original sys.modules on teardown.
-    """
-    mock_fn = MagicMock()
-
-    recorder_mod = types.ModuleType("homeassistant.components.recorder")
-    stats_mod = types.ModuleType("homeassistant.components.recorder.statistics")
-    models_mod = types.ModuleType("homeassistant.components.recorder.models")
-
-    stats_mod.async_import_statistics = mock_fn
-    models_mod.StatisticData = _MockStatisticData
-    models_mod.StatisticMetaData = _MockStatisticMetaData
-
-    keys = [
-        "homeassistant.components.recorder",
-        "homeassistant.components.recorder.statistics",
-        "homeassistant.components.recorder.models",
-    ]
-    saved = {k: sys.modules.get(k) for k in keys}
-    sys.modules["homeassistant.components.recorder"] = recorder_mod
-    sys.modules["homeassistant.components.recorder.statistics"] = stats_mod
-    sys.modules["homeassistant.components.recorder.models"] = models_mod
-
-    yield mock_fn
-
-    for k in keys:
-        if saved[k] is None:
-            sys.modules.pop(k, None)
-        else:
-            sys.modules[k] = saved[k]
+# The ``mock_import`` fixture (shared, in conftest.py) patches the real recorder
+# ``async_import_statistics`` and keeps HA's real StatisticMetaData/StatisticData
+# in play, so captured calls carry real dicts — assert with subscript access.
 
 
 # -- Helpers ---------------------------------------------------------------
@@ -180,7 +114,7 @@ class TestZeroAndNoneValueGuards:
         ]
         await coordinator._import_statistics(events)
 
-        stat_ids = {c[0][1].statistic_id for c in mock_import.call_args_list}
+        stat_ids = {c[0][1]["statistic_id"] for c in mock_import.call_args_list}
         assert f"sensor.{DOMAIN}_active_insulin_iob" not in stat_ids
         assert f"sensor.{DOMAIN}_total_bolus" in stat_ids
 
@@ -230,7 +164,7 @@ class TestCorrectionBolusStatistic:
             }
         ]
         await coordinator._import_statistics(events)
-        stat_ids = {c[0][1].statistic_id for c in mock_import.call_args_list}
+        stat_ids = {c[0][1]["statistic_id"] for c in mock_import.call_args_list}
         assert "sensor.tandem_correction_bolus" in stat_ids
 
     async def test_correction_bolus_nonzero_delivery_status_skipped(self, hass: HomeAssistant, mock_import):

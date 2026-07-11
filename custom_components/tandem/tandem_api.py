@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import hashlib
 import json
 import logging
@@ -28,6 +29,7 @@ import ssl
 import struct
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 from urllib.parse import urlencode, urlparse, parse_qs
 
 import certifi
@@ -90,7 +92,7 @@ EVT_CGM_DATA_FSL2 = 372
 EVT_CGM_DATA_G7 = 399
 
 
-def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
+def _decode_cgm_gxb_layout(evt: dict[str, Any], payload: bytes) -> None:
     """Decode GXB-style CGM payload (shared by events 256 and 399)."""
     evt["event_name"] = "CGM"
     evt["glucose_mgdl"] = struct.unpack_from(">H", payload, 4)[0]
@@ -99,7 +101,7 @@ def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
     evt["status"] = struct.unpack_from(">H", payload, 2)[0]
 
 
-def decode_pump_events(raw_b64: str) -> list[dict]:
+def decode_pump_events(raw_b64: str) -> list[dict[str, Any]]:
     """Decode base64-encoded binary pump events into a list of dicts.
 
     Each returned dict contains:
@@ -111,14 +113,14 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
     """
     try:
         raw_bytes = base64.b64decode(raw_b64)
-    except (ValueError, base64.binascii.Error) as e:
+    except (ValueError, binascii.Error) as e:
         _LOGGER.error("Failed to base64-decode pump events: %s", e)
         return []
 
     num_events = len(raw_bytes) // EVENT_LEN
     _LOGGER.debug("Decoding %d pump events (%d bytes)", num_events, len(raw_bytes))
 
-    events = []
+    events: list[dict[str, Any]] = []
     event_id_counts: dict[int, int] = {}
     for i in range(num_events):
         chunk = raw_bytes[i * EVENT_LEN : (i + 1) * EVENT_LEN]
@@ -138,7 +140,7 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
         ts = datetime.fromtimestamp(TANDEM_EPOCH + ts_raw, tz=timezone.utc).replace(tzinfo=None)
         event_id_counts[event_id] = event_id_counts.get(event_id, 0) + 1
 
-        evt = {
+        evt: dict[str, Any] = {
             "event_id": event_id,
             "timestamp": ts,
             "seq": seq,
@@ -546,7 +548,7 @@ class TandemSourceClient:
         if self._client is None or self._client.is_closed:
             loop = asyncio.get_running_loop()
 
-            def _build_ssl_ctx():
+            def _build_ssl_ctx() -> ssl.SSLContext:
                 ctx = ssl.create_default_context(cafile=certifi.where())
                 ctx.minimum_version = ssl.TLSVersion.TLSv1_2
                 return ctx
@@ -692,12 +694,14 @@ class TandemSourceClient:
             self.region,
         )
 
-    def _extract_jwt_claims(self):
+    def _extract_jwt_claims(self) -> None:
         """Extract claims from the id_token JWT payload.
 
         We skip cryptographic verification since we received the token over
         HTTPS directly from the token endpoint.
         """
+        if self.id_token is None:
+            raise TandemAuthError("No id_token available to decode")
         parts = self.id_token.split(".")
         if len(parts) != 3:
             raise TandemAuthError("Invalid JWT format")
@@ -736,14 +740,14 @@ class TandemSourceClient:
             headers.update(extra)
         return headers
 
-    def _api_headers(self) -> dict:
+    def _api_headers(self) -> dict[str, str]:
         """Get headers for authenticated API requests."""
         return {
             "Authorization": f"Bearer {self.access_token}",
             "User-Agent": USER_AGENT,
         }
 
-    async def _api_get(self, url: str, _retries: int = 2) -> dict:
+    async def _api_get(self, url: str, _retries: int = 2) -> Any:
         """Make an authenticated GET request with automatic re-login on 401.
 
         Retries transient network errors (connection reset, timeout, DNS)
@@ -794,11 +798,13 @@ class TandemSourceClient:
 
     # ── Tandem Source API endpoints ──────────────────────────────────────
 
-    async def get_pumper_info(self) -> dict:
+    async def get_pumper_info(self) -> dict[str, Any]:
         """Get user and pump information."""
-        return await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        return cast(
+            "dict[str, Any]", await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        )
 
-    async def get_pump_event_metadata(self) -> list:
+    async def get_pump_event_metadata(self) -> list[dict[str, Any]]:
         """Get pump event metadata (serial, model, last upload, etc.).
 
         Returns a list of dicts, one per pump on the account. Each dict has:
@@ -806,15 +812,18 @@ class TandemSourceClient:
         maxDateWithEvents, lastUpload, patientName, patientDateOfBirth,
         patientCareGiver, softwareVersion, partNumber
         """
-        return await self._api_get(
-            f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/{self.pumper_id}/pumpeventmetadata"
+        return cast(
+            "list[dict[str, Any]]",
+            await self._api_get(
+                f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/{self.pumper_id}/pumpeventmetadata"
+            ),
         )
 
     # ── ControlIQ API endpoints ──────────────────────────────────────────
     # These use the TDC services base URL and may or may not accept the
     # Tandem Source OIDC access token. Failures are handled gracefully.
 
-    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy timeline data (basal, bolus, CGM readings).
 
         Args:
@@ -829,12 +838,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/therapytimeline/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy timeline not available: %s", e)
             return None
 
-    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict | None:
+    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch dashboard summary statistics.
 
         Args:
@@ -849,12 +858,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/summary/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Dashboard summary not available: %s", e)
             return None
 
-    async def get_therapy_events(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_events(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy events used by the webui Therapy Timeline.
 
         Args:
@@ -868,14 +877,16 @@ class TandemSourceClient:
                 f"TherapyEvents/{start_date}/{end_date}/false?userId={user_guid}"
             )
             _LOGGER.debug("Tandem: Attempting therapy_events API: %s", url)
-            result = await self._api_get(url)
+            result: dict[str, Any] = await self._api_get(url)
             _LOGGER.debug("Tandem: therapy_events returned type=%s", type(result).__name__)
             return result
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy events API not available: %s", e)
             return None
 
-    async def get_pump_events(self, device_id: str | int, start_date: str, end_date: str) -> list[dict] | None:
+    async def get_pump_events(
+        self, device_id: str | int, start_date: str, end_date: str
+    ) -> list[dict[str, Any]] | None:
         """Fetch and decode pump events from the Source Reports API.
 
         The pumpevents endpoint returns base64-encoded binary data using
@@ -982,7 +993,7 @@ class TandemSourceClient:
         self,
         pump_timezone: str | None = None,
         fallback_date: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Fetch all available recent data from Tandem Source APIs.
 
         Parallelises independent API calls where possible.
@@ -1015,7 +1026,7 @@ class TandemSourceClient:
         now_pump = datetime.now(tz)
         week_ago_pump = now_pump - timedelta(days=7)
 
-        data: dict = {
+        data: dict[str, Any] = {
             "pump_metadata": None,
             "pumper_info": None,
             "pump_events": None,
@@ -1024,6 +1035,10 @@ class TandemSourceClient:
         }
 
         # ── Phase 1: metadata + pumper_info in parallel ──────────────
+        # Pre-declare the unpack targets: mypy cannot infer the tuple element
+        # types through asyncio.gather(return_exceptions=True) unpacking.
+        metadata_result: dict[str, Any] | None | BaseException
+        pumper_result: dict[str, Any] | None | BaseException
         metadata_result, pumper_result = await asyncio.gather(
             self._fetch_pump_metadata(),
             self._fetch_pumper_info(),
@@ -1094,6 +1109,8 @@ class TandemSourceClient:
                 tz,
             )
 
+            timeline_result: dict[str, Any] | None | BaseException
+            summary_result: dict[str, Any] | None | BaseException
             timeline_result, summary_result = await asyncio.gather(
                 self.get_therapy_timeline(start_mm, end_mm),
                 self.get_dashboard_summary(start_mm, end_mm),
@@ -1118,7 +1135,7 @@ class TandemSourceClient:
 
         return data
 
-    async def _fetch_pump_metadata(self) -> dict | None:
+    async def _fetch_pump_metadata(self) -> dict[str, Any] | None:
         """Fetch and extract first pump metadata entry."""
         metadata_list = await self.get_pump_event_metadata()
         if isinstance(metadata_list, list) and metadata_list:
@@ -1127,11 +1144,11 @@ class TandemSourceClient:
             return metadata_list
         return None
 
-    async def _fetch_pumper_info(self) -> dict | None:
+    async def _fetch_pumper_info(self) -> dict[str, Any] | None:
         """Fetch pumper info."""
         return await self.get_pumper_info()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client we own.
 
         A no-op when the client was injected by Home Assistant — closing the
@@ -1144,7 +1161,7 @@ class TandemSourceClient:
             self._client = None
 
 
-def parse_dotnet_date(date_str) -> datetime | None:
+def parse_dotnet_date(date_str: str) -> datetime | None:
     """Parse .NET /Date(epoch_ms)/ or /Date(epoch_ms+offset)/ format.
 
     Also handles plain ISO 8601 date strings and epoch integers.

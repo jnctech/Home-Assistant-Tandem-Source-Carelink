@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from homeassistant.const import STATE_UNAVAILABLE
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -16,8 +18,11 @@ from .const import (
     TANDEM_SENSOR_KEY_SOFTWARE_VERSION,
 )
 
+if TYPE_CHECKING:
+    from .coordinator import TandemCoordinator
 
-def is_data_stale(coordinator_data: dict | None) -> bool:
+
+def is_data_stale(coordinator_data: dict[str, Any] | None) -> bool:
     """Check whether Tandem pump data is stale.
 
     Compares the last CGM reading timestamp against current UTC time. Returns
@@ -37,10 +42,10 @@ def is_data_stale(coordinator_data: dict | None) -> bool:
     if last_sg_time.tzinfo is None:
         last_sg_time = last_sg_time.replace(tzinfo=now.tzinfo)
 
-    return (now - last_sg_time) >= TANDEM_DATA_STALE_TIMEDELTA
+    return bool((now - last_sg_time) >= TANDEM_DATA_STALE_TIMEDELTA)
 
 
-def pump_device_info(coordinator) -> DeviceInfo:
+def pump_device_info(coordinator: TandemCoordinator) -> DeviceInfo:
     """Build a DeviceInfo for the pump coordinator (single source of truth)."""
     data = coordinator.data or {}
     return DeviceInfo(

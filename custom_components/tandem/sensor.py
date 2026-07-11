@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Any, cast
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import StateType
 
 from .coordinator import TandemConfigEntry
 from .entity import PARALLEL_UPDATES, TandemEntity  # noqa: F401  (PARALLEL_UPDATES re-exported for HA)
@@ -30,12 +38,15 @@ async def async_setup_entry(
 class TandemSensor(TandemEntity, SensorEntity):
     """A Tandem sensor backed by a coordinator data key."""
 
+    sensor_description: SensorEntityDescription
+
     @property
-    def native_value(self):
+    def native_value(self) -> StateType | datetime:
         """Return the value for this sensor's data key, or None if absent."""
-        if self.coordinator.data is None:
+        data = self.coordinator.data
+        if data is None:
             return None
-        return self.coordinator.data.get(self.sensor_description.key)
+        return cast("StateType | datetime", data.get(self.sensor_description.key))
 
     @property
     def device_class(self) -> SensorDeviceClass | None:
@@ -48,13 +59,14 @@ class TandemSensor(TandemEntity, SensorEntity):
         return self.sensor_description.native_unit_of_measurement
 
     @property
-    def state_class(self) -> SensorStateClass | None:
+    def state_class(self) -> SensorStateClass | str | None:
         """Return the state class."""
         return self.sensor_description.state_class
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return the per-sensor attributes stored under ``<key>_attributes``."""
-        if self.coordinator.data is None:
+        data = self.coordinator.data
+        if data is None:
             return {}
-        return self.coordinator.data.get(f"{self.sensor_description.key}_attributes", {})
+        return cast("dict[str, Any]", data.get(f"{self.sensor_description.key}_attributes", {}))

@@ -7,8 +7,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfElectricPotential, UnitOfMass
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfElectricPotential, UnitOfMass
 
 from .const import (
     ICON_ALERT_CIRCLE_OUTLINE,
@@ -89,6 +88,7 @@ from .const import (
 
 # BLOOD_GLUCOSE_CONCENTRATION was added in HA 2024.11. Gracefully degrade so
 # the descriptions import on older HA (null-not-guess: unknown -> None, not a fake class).
+_BLOOD_GLUCOSE: SensorDeviceClass | None
 try:
     _BLOOD_GLUCOSE = SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION
 except AttributeError:  # pragma: no cover
