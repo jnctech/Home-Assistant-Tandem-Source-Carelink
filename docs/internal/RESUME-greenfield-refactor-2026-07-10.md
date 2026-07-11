@@ -60,10 +60,12 @@ index; CHANGE-REGISTER `CR-260710`; ADR-001 supersede note; `hacs-default-submis
 ## Remaining work
 
 ### P4 — Platinum technical rules (`manifest.quality_scale` still `bronze`)
-1. **inject-websession** (Platinum): thread `hass` into `TandemSourceClient.__init__` and replace its self-made httpx
-   client with `homeassistant.helpers.httpx_client.get_async_client(hass)`. **Watch:** `config_flow.validate_tandem_input`
-   and `test_tandem_config_flow.py` construct `TandemSourceClient(email, password, region)` — signature change ripples to
-   those + `__init__.async_setup_entry` + `tests/conftest.py`/`test_tandem_stale_data.py` mocks.
+1. ~~**inject-websession**~~ **DONE** (`156e849`): `TandemSourceClient` gained an optional `session`; production injects
+   `get_async_client(hass)` from `__init__.async_setup_entry` + `config_flow.validate_tandem_input(hass, data)`. `close()`
+   is a no-op on an injected client; login calls send UA explicitly via `_login_headers` and every request passes
+   `REQUEST_TIMEOUT=30`. Tests: injected-session reuse/never-close + config-flow threads `session`. Also fixed a
+   pre-existing midnight-boundary flake in `test_expanded_data.py` daily-summary tests (`c2d8550`, `freeze_time(BASE_TS)`).
+   **Remaining P4 below.**
 2. **strict-typing:** full hints + `mypy --strict`; drop the coordinator/tandem_api `ignore_errors` override
    incrementally (it's honest, not a cheat — do the real typing pass). Wire `.pre-commit-config.yaml` (ruff/mypy/bandit/gitleaks).
 3. **runtime_data:** migrate `hass.data[DOMAIN][entry_id]` → `entry.runtime_data` (mikrotik `MikrotikData` pattern).
