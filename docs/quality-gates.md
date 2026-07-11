@@ -13,8 +13,8 @@ tier we don't meet.
 | Platinum technical rule | State | Gap / plan |
 |---|---|---|
 | **async-dependency** (the API library is asyncio-based) | ✅ met | `tandem_api.py` is in-repo and fully `httpx`-async. |
-| **inject-websession** (reuse HA's managed client) | ❌ gap | `TandemSourceClient` builds its own `httpx` client; switch to `homeassistant.helpers.httpx_client.get_async_client(hass)`. |
-| **strict-typing** (fully typed; mypy-strict) | ◐ partial | House-layout modules typed; `coordinator.py` / `tandem_api.py` are `ignore_errors` in `pyproject.toml` pending their typing pass. |
+| **inject-websession** (reuse HA's managed client) | ✅ met | HA's managed client injected via `homeassistant.helpers.httpx_client.get_async_client(hass)` (config flow + `__init__`); `TandemSourceClient` only builds/owns its own client when none is injected. CR-260710 (`156e849`). |
+| **strict-typing** (fully typed; mypy-strict) | ✅ met | All 14 modules pass `mypy --strict`; no `ignore_errors` overrides (`pyproject.toml` `strict = true`). Enforced in CI (`typecheck` job, py3.13). CR-260711 (`b87a97d`). |
 
 Gold completeness already present: config flow + reauth + reconfigure, diagnostics
 (`diagnostics.py`), entity metadata (device/units/state_class), a data-stale health
@@ -26,7 +26,7 @@ still to add.
 | Gate | Tool | Where |
 |------|------|-------|
 | Lint + format | Ruff | `pyproject.toml`; `.github/workflows/ci.yml`, `.gitea/workflows/ci.yml` |
-| Types | mypy (strict, incremental) | `pyproject.toml` `[tool.mypy]` |
+| Types | mypy `--strict` (all modules) | `pyproject.toml` `[tool.mypy]`; `.github/workflows/ci.yml` `typecheck` |
 | Tests | pytest + `pytest-homeassistant-custom-component` | `pytest.ini` |
 | Coverage | `fail_under = 80` | `pyproject.toml` `[tool.coverage.report]` |
 | Security | Bandit + gitleaks | `bandit.yaml`, `.gitleaks.toml`, CI |
