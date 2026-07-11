@@ -14,12 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.tandem.const import (
-    DOMAIN,
-    PLATFORM_TANDEM,
-    PLATFORM_TYPE,
-    TANDEM_CLIENT,
-)
+from custom_components.tandem.const import DOMAIN
 
 
 @pytest.fixture(autouse=True)
@@ -271,11 +266,6 @@ async def make_tandem_coordinator(
     mock_client.get_pump_event_metadata = AsyncMock(return_value=[{"maxDateWithEvents": "2026-03-01T12:00:00"}])
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
     await coordinator.async_config_entry_first_refresh()
     return coordinator

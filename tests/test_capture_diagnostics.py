@@ -11,8 +11,11 @@ import pytest
 
 from homeassistant.core import HomeAssistant, ServiceCall
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from custom_components.tandem import _handle_capture_diagnostics
-from custom_components.tandem.const import COORDINATOR, DOMAIN
+from custom_components.tandem.const import DOMAIN
+from custom_components.tandem.coordinator import TandemRuntimeData
 
 
 def _make_coordinator_mock(
@@ -59,7 +62,9 @@ def _make_coordinator_mock(
 
 async def _run_diagnostics(hass, entry_id, mock_call, coordinator, tmp_path):
     """Run _handle_capture_diagnostics with file output to tmp_path."""
-    hass.data.setdefault(DOMAIN, {})[entry_id] = {COORDINATOR: coordinator}
+    entry = MockConfigEntry(domain=DOMAIN, entry_id=entry_id)
+    entry.add_to_hass(hass)
+    entry.runtime_data = TandemRuntimeData(client=coordinator.client, coordinator=coordinator)
     out_file = str(tmp_path / "tandem_diagnostics_test.json")
 
     with (

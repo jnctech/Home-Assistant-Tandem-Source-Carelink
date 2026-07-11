@@ -16,9 +16,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     UNAVAILABLE,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_MGDL,
@@ -183,12 +180,7 @@ async def _setup_coordinator(
     )
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     await coordinator.async_config_entry_first_refresh()
     return coordinator
@@ -456,12 +448,7 @@ class TestSequenceDeduplication:
         )
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         # First poll
         await coordinator.async_config_entry_first_refresh()
@@ -560,12 +547,7 @@ class TestImportStatistics:
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         events = [
             _make_cgm_event(seq=1, glucose_mgdl=100, minutes_ago=10),
@@ -610,12 +592,7 @@ class TestImportStatistics:
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         # Create a CGM event at 12:07:30 UTC - should round to 12:00:00
         events = [
@@ -660,12 +637,7 @@ class TestImportStatistics:
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         events = [_make_cgm_event(seq=1, glucose_mgdl=120)]
 

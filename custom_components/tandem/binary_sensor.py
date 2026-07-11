@@ -12,12 +12,11 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .binary_sensor_types import DATA_STALE, TANDEM_BINARY_SENSORS
-from .const import COORDINATOR, DOMAIN
+from .coordinator import TandemConfigEntry
 from .entity import PARALLEL_UPDATES, TandemEntity  # noqa: F401  (PARALLEL_UPDATES re-exported for HA)
 from .helpers import is_data_stale
 
@@ -26,11 +25,11 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: TandemConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Tandem binary sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
+    coordinator = entry.runtime_data.coordinator
     entities: list[BinarySensorEntity] = [TandemBinarySensor(coordinator, desc) for desc in TANDEM_BINARY_SENSORS]
     entities.append(TandemDataStaleBinarySensor(coordinator))
     async_add_entities(entities)

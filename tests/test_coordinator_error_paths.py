@@ -24,9 +24,6 @@ from unittest.mock import AsyncMock
 
 from custom_components.tandem.const import (
     DOMAIN,
-    PLATFORM_TANDEM,
-    PLATFORM_TYPE,
-    TANDEM_CLIENT,
     UNAVAILABLE,
     TANDEM_SENSOR_KEY_AVG_GLUCOSE_MMOL,
     TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL,
@@ -85,11 +82,7 @@ async def _make_coordinator(hass: HomeAssistant):
 
     entry = _make_entry(hass)
     client = _make_client()
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
     await coordinator.async_config_entry_first_refresh()
     return coordinator, client
 
@@ -108,11 +101,7 @@ class TestUpdateDataLoginErrors:
         entry = _make_entry(hass)
         client = _make_client()
         client.login = AsyncMock(side_effect=TandemAuthError("bad credentials"))
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         with pytest.raises(ConfigEntryAuthFailed):
             await coordinator.async_config_entry_first_refresh()
         client.get_pump_event_metadata.assert_not_called()
@@ -124,11 +113,7 @@ class TestUpdateDataLoginErrors:
         entry = _make_entry(hass)
         client = _make_client()
         client.login = AsyncMock(side_effect=Exception("network timeout"))
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         with pytest.raises(ConfigEntryNotReady):
             await coordinator.async_config_entry_first_refresh()
         client.get_pump_event_metadata.assert_not_called()
@@ -144,11 +129,7 @@ class TestUpdateDataMetadataBranch:
         entry = _make_entry(hass)
         client = _make_client()
         client.get_pump_event_metadata = AsyncMock(return_value={"maxDateWithEvents": "2026-03-06T18:00:00"})
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         await coordinator.async_config_entry_first_refresh()
         assert coordinator.data is not None
 
@@ -164,11 +145,7 @@ class TestUpdateDataFetchErrors:
         entry = _make_entry(hass)
         client = _make_client()
         client.get_recent_data = AsyncMock(side_effect=TandemApiError("server error"))
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         with pytest.raises(ConfigEntryNotReady):
             await coordinator.async_config_entry_first_refresh()
 
@@ -179,11 +156,7 @@ class TestUpdateDataFetchErrors:
         entry = _make_entry(hass)
         client = _make_client()
         client.get_recent_data = AsyncMock(side_effect=Exception("timeout"))
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         with pytest.raises(ConfigEntryNotReady):
             await coordinator.async_config_entry_first_refresh()
 
@@ -194,11 +167,7 @@ class TestUpdateDataFetchErrors:
         entry = _make_entry(hass)
         client = _make_client()
         client.get_recent_data = AsyncMock(return_value="not a dict")
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, client, update_interval=timedelta(seconds=300))
         with pytest.raises(ConfigEntryNotReady):
             await coordinator.async_config_entry_first_refresh()
 

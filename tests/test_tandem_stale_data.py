@@ -14,9 +14,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     TANDEM_DATA_STALE_TIMEDELTA,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
@@ -261,12 +258,7 @@ async def _setup_coordinator_for_stale_test(
     else:
         mock_client.get_recent_data = AsyncMock(return_value=_default_recent_data())
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     return coordinator, mock_client
 

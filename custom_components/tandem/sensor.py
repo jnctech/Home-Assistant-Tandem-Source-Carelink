@@ -5,11 +5,10 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import COORDINATOR, DOMAIN
+from .coordinator import TandemConfigEntry
 from .entity import PARALLEL_UPDATES, TandemEntity  # noqa: F401  (PARALLEL_UPDATES re-exported for HA)
 from .sensor_types import TANDEM_SENSORS
 
@@ -18,11 +17,11 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: TandemConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Tandem sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id][COORDINATOR]
+    coordinator = entry.runtime_data.coordinator
     entities = [TandemSensor(coordinator, desc) for desc in TANDEM_SENSORS]
     async_add_entities(entities)
     _LOGGER.debug("Sensor setup: %d entities", len(entities))

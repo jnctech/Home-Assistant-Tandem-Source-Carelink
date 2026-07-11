@@ -13,10 +13,6 @@ ATTRIBUTION = "Data provided by Tandem Source"
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
-# hass.data storage keys (client + coordinator handles per config entry).
-TANDEM_CLIENT = "tandem_client"
-COORDINATOR = "coordinator"
-
 # Config-entry data keys.
 SCAN_INTERVAL = "scan_interval"
 CONF_EMAIL = "tandem_email"

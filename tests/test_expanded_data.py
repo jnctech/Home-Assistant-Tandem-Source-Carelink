@@ -15,9 +15,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     UNAVAILABLE,
     # CGM summary
     TANDEM_SENSOR_KEY_AVG_GLUCOSE_MGDL,
@@ -278,16 +275,11 @@ async def _setup_coordinator(hass: HomeAssistant, mock_data: dict):
     )
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
     # Pin to UTC so date comparisons in _compute_insulin_summary are
     # consistent regardless of the CI runner's local timezone.
     hass.config.time_zone = "UTC"
 
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
     await coordinator.async_config_entry_first_refresh()
     return coordinator
 

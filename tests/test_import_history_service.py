@@ -10,13 +10,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.tandem.const import (
-    COORDINATOR,
-    DOMAIN,
-    PLATFORM_TANDEM,
-    PLATFORM_TYPE,
-    TANDEM_CLIENT,
-)
+from custom_components.tandem.const import DOMAIN
+from custom_components.tandem.coordinator import TandemRuntimeData
 
 
 # ── Fixtures / helpers ────────────────────────────────────────────────────────
@@ -67,11 +62,7 @@ def _setup_hass_data(hass: HomeAssistant, entry: MockConfigEntry, client: AsyncM
     coordinator.timezone = "UTC"
     coordinator._import_statistics = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-        COORDINATOR: coordinator,
-    }
+    entry.runtime_data = TandemRuntimeData(client=client, coordinator=coordinator)
     return coordinator
 
 
@@ -346,12 +337,9 @@ class TestImportHistoryServiceRegistration:
 
         assert hass.services.has_service(DOMAIN, SERVICE_IMPORT_HISTORY)
 
-        # Restore entry_data so async_unload_entry can pop it
+        # Give async_unload_entry an awaitable client.close() via runtime_data
         client = _make_mock_client()
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
+        entry.runtime_data = TandemRuntimeData(client=client, coordinator=MagicMock())
 
         with patch.object(hass.config_entries, "async_unload_platforms", return_value=True):
             await async_unload_entry(hass, entry)

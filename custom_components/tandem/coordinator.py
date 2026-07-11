@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import logging
 import math
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -55,6 +57,7 @@ from .tandem_api import (
     EVT_USB_DISCONNECTED,
     TandemApiError,
     TandemAuthError,
+    TandemSourceClient,
     parse_dotnet_date,
 )
 from .const import (
@@ -66,7 +69,6 @@ from .const import (
     DOMAIN,
     TANDEM_ALARM_MAP,
     TANDEM_ALERT_MAP,
-    TANDEM_CLIENT,
     TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT,
     TANDEM_SENSOR_KEY_ACTIVE_INSULIN,
     TANDEM_SENSOR_KEY_ACTIVE_PROFILE,
@@ -145,6 +147,24 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class TandemRuntimeData:
+    """Per-entry runtime data for the Tandem integration.
+
+    Stored on ``entry.runtime_data`` (the HA-recommended replacement for
+    ``hass.data[DOMAIN][entry_id]`` — the quality-scale ``runtime-data`` rule).
+    Holds the Source API client and the live coordinator so platforms,
+    services, and diagnostics resolve them from the loaded entry.
+    """
+
+    client: TandemSourceClient
+    coordinator: TandemCoordinator
+
+
+# Typed config entry whose runtime_data is the TandemRuntimeData above.
+type TandemConfigEntry = ConfigEntry[TandemRuntimeData]
+
+
 class TandemCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the Tandem Source API.
 
@@ -154,12 +174,18 @@ class TandemCoordinator(DataUpdateCoordinator):
     correctly-timestamped long-term statistics for Statistics Graph cards.
     """
 
-    def __init__(self, hass: HomeAssistant, entry, update_interval: timedelta):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        client: TandemSourceClient,
+        update_interval: timedelta,
+    ):
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval, config_entry=entry)
 
         self.entry_id = entry.entry_id
         self.configuration_url = "https://source.tandemdiabetes.com"
-        self.client = hass.data[DOMAIN][entry.entry_id][TANDEM_CLIENT]
+        self.client = client
         self.timezone = hass.config.time_zone
         self._prev_sg_mgdl: float | None = None
 
