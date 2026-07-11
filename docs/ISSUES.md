@@ -5,16 +5,64 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ---
 
+## In-flight (read first at session start)
+
+**RC published, live test pending.** `v2.0.0-rc.1` is live as a GitHub **pre-release**
+(https://github.com/jnctech/ha-tandem-pump/releases/tag/v2.0.0-rc.1) off branch
+`feature/iss-260523-v2-domain-rename` (HEAD `fa606fa`, pushed, 20 ahead / 0 behind develop).
+Draft **PR #70** (feature → develop) is open with all **code** CI green (376 tests, mypy --strict,
+hassfest, ruff, bandit, gitleaks); 3 red checks are environmental non-blockers → ISS-004 (SONAR 403),
+ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+
+**Next session prompt:** Run the live-pump validation of `v2.0.0-rc.1` (pump available 2026-07-12 PM).
+Resolve `/validate-live-tandem` UNVERIFIED prereqs first (HA host, creds source, ground-truth source),
+install the RC via HACS custom-repo + beta, validate live entities. **If green:** promote draft PR #70
+out of draft and merge to develop, then tag final `v2.0.0` (promote rc.1 → release). **If issues:**
+fix on the feature branch, cut `v2.0.0-rc.2`. Then resume P4 #3 (ISS-260712-reconfigure-platinum).
+
+---
+
 ## Current Priorities
 
-1. **ISS-012** — HACS review findings (in progress — feature/iss-012-hacs-compliance)
-2. **ISS-010** — ADRs + templates done; tooling + ADR-007/008 remaining
-3. **ISS-005** — tandem_api.py coverage gap
-4. Remaining baseline findings (D-1, L-5, S-4)
+1. **v2.0.0-rc.1 live test** (In-flight above) — validate on real pump, then merge PR #70 + promote to v2.0.0
+2. **ISS-260712-reconfigure-platinum** — last P4 item; reconfigure/repair polish → flip quality_scale bronze→platinum
+3. **ISS-004** — rotate expired SONAR_TOKEN (SonarCloud 403); **ISS-260712-brands-registration** — home-assistant/brands PR
+4. **ISS-012** — HACS review findings (older; verify still relevant post-rewrite)
+5. **ISS-005** — tandem_api.py coverage gap
 
 ---
 
 ## Active
+
+### ISS-260712-reconfigure-platinum — Reconfigure/repair polish → Platinum flip
+**Type:** Quality / HA Quality Scale
+**Priority:** High (last P4 item)
+**Created:** 2026-07-12
+**Status:** 🟡 Open
+Last remaining P4 Platinum item. Polish the reconfigure + repair flows, then flip
+`custom_components/tandem/manifest.json` `quality_scale` **bronze → platinum** and re-run
+hassfest / HACS validate. The v2.0.0-rc.1 release intentionally ships at `bronze` — no Platinum
+claim until this lands and validates. Tracked long-form in `docs/quality-gates.md` / STANDARDS-tandem §4.
+
+### ISS-260712-brands-registration — Register `tandem` domain in home-assistant/brands
+**Type:** Distribution / HACS
+**Priority:** Medium (blocks HACS default listing, NOT custom-repo install)
+**Created:** 2026-07-12
+**Status:** 🟡 Open — needs operator go (upstream PR)
+HACS `validate` fails only on the `brands` sub-check: the `tandem` domain is not in the
+`home-assistant/brands` repository (renamed from `carelink`, never re-added). Needs an **upstream**
+PR to `home-assistant/brands` adding `custom_integrations/tandem/` with `icon.png` + `logo.png`
+(brand assets do not yet exist — must be created). Does not block the RC or a custom-repo beta
+install (placeholder icon only). Do not open the upstream PR without explicit operator go-ahead.
+
+### ISS-260712-conflicts-action-broken — `conflicts` CI workflow fails to build
+**Type:** CI hygiene
+**Priority:** Low
+**Created:** 2026-07-12
+**Status:** 🟡 Open
+The `conflicts` check (`mschilde/auto-label-merge-conflicts`) fails on PR #70 — its Docker image
+won't build (`yarn: not found`). Not a real merge conflict (PR is MERGEABLE); pure infra noise.
+Pin the action to a working ref, replace it with a maintained equivalent, or remove the workflow.
 
 ### ISS-012 — HACS Review Findings
 **Type:** Quality / HACS Compliance
@@ -195,8 +243,11 @@ Full 3-review baseline pass (Logic, API Drift, Sensor) completed by Opus. 16 fin
 All 9 required checks wired to both `master` and `develop` branch protection rules.
 
 ### ISS-004 — SONAR_TOKEN GitHub Actions Secret
-**Closed:** 2026-03-12
-`SONAR_TOKEN` added to GitHub Actions secrets. SonarCloud blocking gate confirmed working.
+**Status:** 🔴 Reopened 2026-07-12 — token expired
+`SONAR_TOKEN` was added 2026-03-12 and confirmed working. As of PR #70 (2026-07-12) the SonarCloud
+scan fails with **HTTP 403** querying JRE metadata — the token has expired/been revoked. **Action
+(operator):** regenerate the token on SonarCloud and update the `SONAR_TOKEN` repo secret. Not a code
+issue; does not block the RC or live test.
 
 ### ISS-001 — Engineering Controls Gap
 **Closed:** 2026-03-12 (PR #37)

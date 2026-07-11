@@ -4,6 +4,37 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260712-v2-rc-release — Publish v2.0.0-rc.1 (Tandem-only rewrite RC)
+**Date:** 2026-07-12
+**Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `fa606fa`)
+**Status:** Released (pre-release) — awaiting live-pump validation
+
+### What changed
+| Area | Change |
+|------|--------|
+| reconcile | Merged `origin/develop` (OpenSSF #64, `GITHUB_TOKEN` permission restriction) into the feature branch → 20 ahead / 0 behind. Tandem rewrite intact; no carelink files resurrected. |
+| version | `manifest.json` **1.0.0 → 2.0.0**. Chosen over 1.0.0 so the tag sits above the carelink-era `v1.6.0` and HACS offers it as an upgrade; domain rename + Medtronic/Nightscout removal = SemVer MAJOR. README "fresh start" refs synced v1.0.0 → v2.0.0. |
+| release notes | CHANGELOG `[2.0.0-rc.1]` entry (Keep a Changelog + breaking-change callout + compare link); modern highlights-style GitHub release body. |
+| release | GitHub **pre-release** `v2.0.0-rc.1` off branch HEAD; `release.yml` built + attached `tandem-2.0.0.zip` + SBOM. Draft PR #70 (feature → develop) opened to run CI. |
+| CI (fork) | Re-enabled the `Validate` workflow (was `disabled_inactivity` — GitHub disables fork workflows after ~60d). |
+
+### Why
+Deliver an installable RC for live-pump validation (custom-repo + HACS beta) and force release hygiene now. `quality_scale` intentionally stays **bronze** — no Platinum claim until ISS-260712-reconfigure-platinum lands.
+
+### Verification (PR #70 CI, Python 3.13)
+| Gate | Result |
+|------|--------|
+| Python Tests | ✅ 376 passed |
+| mypy --strict | ✅ clean |
+| hassfest | ✅ pass |
+| ruff / bandit / gitleaks | ✅ clean |
+| HACS validate | ⚠️ fails only on `brands` (→ ISS-260712-brands-registration); all other sub-checks pass |
+| SonarCloud | ⚠️ SONAR_TOKEN 403 expired (→ ISS-004) |
+| conflicts | ⚠️ broken 3rd-party action (→ ISS-260712-conflicts-action-broken); PR MERGEABLE |
+
+### Follow-ups
+Live test (pump 2026-07-12 PM) → merge PR #70 + promote rc.1 → `v2.0.0`. ISS-004, ISS-260712-brands-registration, ISS-260712-conflicts-action-broken are environmental (operator/upstream).
+
 ## CR-260711-strict-typing — Strict typing pass (P4 Platinum) + test-double fidelity refactor
 **Date:** 2026-07-11
 **Branch:** `feature/iss-260523-v2-domain-rename`
