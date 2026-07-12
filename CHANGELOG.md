@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.0.0-rc.2] - 2026-07-13
+
+### Fixed
+- **Live authentication in Home Assistant** (`invalid_auth` on setup) — the OAuth authorize
+  request now follows the redirect that carries the authorization code
+  (`follow_redirects=True`). Home Assistant's injected httpx client defaults to
+  `follow_redirects=False`, so rc.1 never captured the code and login failed on real setups.
+  The `inject-websession` change in rc.1 had dropped the redirect-following the previous
+  standalone client did by default. Fix validated end-to-end against a live pump.
+- **Config-flow error text** — replaced unresolved `[%key:common::config_flow::…]` references
+  in `translations/en.json` with literal strings, so Home Assistant no longer renders the raw
+  `[%key:common::config_flow::error::invalid_auth%]` key to the user.
+
 ## [2.0.0-rc.1] - 2026-07-11
 
 > ### ⚠️ Breaking change — this is a ground-up rewrite
