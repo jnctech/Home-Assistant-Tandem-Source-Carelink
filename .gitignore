@@ -203,5 +203,6 @@ test_config/
 carelink-integration-preview.png
 branding/
 
-# oob estate governance pointer (internal — not shipped in the public integration)
-docs/internal/oob-standards-pointer.md
+# Internal-only docs (session handoffs, oob governance pointers, reverse-eng notes)
+# — not shipped in the public integration and never committed to the public repo.
+docs/internal/
