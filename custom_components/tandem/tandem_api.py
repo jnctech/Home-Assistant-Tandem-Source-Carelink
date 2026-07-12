@@ -633,10 +633,16 @@ class TandemSourceClient:
         }
 
         try:
+            # The OAuth authorization code is delivered via a 302 to the
+            # redirect_uri (…/callback?code=…). We must follow that redirect to
+            # read the code off the final URL. An injected Home Assistant client
+            # (get_async_client) defaults to follow_redirects=False, so force it
+            # per-request rather than rely on the client's default.
             auth_resp = await client.get(
                 self.urls["AUTHORIZE"] + "?" + urlencode(auth_params),
                 headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
                 timeout=REQUEST_TIMEOUT,
+                follow_redirects=True,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Authorization request failed: {e}") from e

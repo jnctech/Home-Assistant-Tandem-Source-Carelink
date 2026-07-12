@@ -4,6 +4,27 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260713-oauth-redirect-authfix — Fix v2 live auth (OAuth redirect not followed) + config-flow translations
+**Date:** 2026-07-13
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** Fixed + live-validated on real pump; RC-blocker for v2.0.0
+
+### What changed
+| Area | Change |
+|------|--------|
+| `tandem_api.py` | Authorize GET now passes `follow_redirects=True`. The OAuth authorization code arrives via a 302 to `…/callback?code=…`; the injected Home Assistant client (`get_async_client`) defaults to `follow_redirects=False`, so the code was never captured → `TandemAuthError: No authorization code in redirect URL` → surfaced as `invalid_auth`. Regression introduced by the inject-websession refactor (CR-260710); the old standalone client had `follow_redirects=True`. |
+| `translations/en.json` | Replaced 6 `[%key:common::config_flow::…%]` references with literal English strings (`Invalid authentication`, `Failed to connect`, etc.). Core resolves `[%key:]` at build time; a custom component ships them as-is, so HA rendered the raw key `[%key:common::config_flow::error::invalid_auth%]` to the user. `strings.json` left as the reference-form source. |
+| `tests/test_tandem_api.py` | Added `test_login_authorize_follows_redirects` — asserts the authorize GET is called with `follow_redirects=True`. The existing login tests pre-set `mock_auth_resp.url` (simulating an already-followed redirect), which is why unit tests were green while live auth failed. |
+
+### How found / validated
+Live-validated via `/validate-live-tandem` after manually staging v2.0.0-rc.1 to the running HA
+(`domain=tandem`). Root cause read from the in-memory `system_log` (`No authorization code in redirect URL`).
+Post-fix: config entry `loaded`, 70 `tandem_*` entities, `binary_sensor.tandem_data_stale` present.
+⚠️ Unit tests (`test_tandem_api.py`, `test_tandem_config_flow.py`) need a **remote** run to confirm the new
+test passes (local pytest not run per project rule).
+
+---
+
 ## CR-260712-untrack-internal-docs — Untrack internal docs leaked to public repo
 **Date:** 2026-07-12
 **Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `20e7ddc`)
