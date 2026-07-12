@@ -7,25 +7,29 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ## In-flight (read first at session start)
 
-**RC published, live test pending.** `v2.0.0-rc.1` is live as a GitHub **pre-release**
-(https://github.com/jnctech/ha-tandem-pump/releases/tag/v2.0.0-rc.1) off branch
-`feature/iss-260523-v2-domain-rename` (branch HEAD `20e7ddc`, RC tag on `fa606fa`, pushed,
-21 ahead / 0 behind develop). Draft **PR #70** (feature → develop) is open with all **code** CI green
-(376 tests, mypy --strict, hassfest, ruff, bandit, gitleaks); 3 red checks are environmental
-non-blockers → ISS-004 (SONAR 403), ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
-Latest: `20e7ddc` untracked internal docs leaked to public repo (CR-260712-untrack-internal-docs).
+**v2 LIVE-VALIDATED + rc.2 released + PR #70 MERGED to develop (2026-07-13).** Live setup on the real
+pump surfaced an auth regression: the `inject-websession` change (CR-260710) used HA's injected httpx
+client, which defaults `follow_redirects=False`, so the OAuth authorize→code 302 was never followed →
+`No authorization code in redirect URL` → `invalid_auth`. **Fixed** (`follow_redirects=True` on the
+authorize GET) + config-flow translations (`[%key:common::…]` → literal strings) + regression test —
+`de41377`, **CR-260713-oauth-redirect-authfix**. Remote tests **377 pass**. Published pre-release
+**`v2.0.0-rc.2`** (https://github.com/jnctech/ha-tandem-pump/releases/tag/v2.0.0-rc.2, off `3db9299`).
+**PR #70 MERGED to develop** (admin-merge `6eb7477`; the SonarCloud *required* check bypassed per operator
+exception — 8/9 required checks green). develop now ships `domain=tandem` + `custom_components/tandem/`
+(carelink folder gone) + the auth fix → **HACS folder-misplacement permanently fixed**. Mila's live HA runs
+a MANUAL install of the fixed code (== rc.2, via SSH `homeassistant`), not HACS-tracked. Feature branch NOT deleted.
 
-**Next session prompt:** Run the live-pump validation of `v2.0.0-rc.1` (pump available 2026-07-12 PM).
-Resolve `/validate-live-tandem` UNVERIFIED prereqs first (HA host, creds source, ground-truth source),
-install the RC via HACS custom-repo + beta, validate live entities. **If green:** promote draft PR #70
-out of draft and merge to develop, then tag final `v2.0.0` (promote rc.1 → release). **If issues:**
-fix on the feature branch, cut `v2.0.0-rc.2`. Then resume P4 #3 (ISS-260712-reconfigure-platinum).
+**Next session prompt:** (1) Confirm **SONAR_TOKEN rotated** (operator, ~2026-07-14 → ISS-004) so develop
+CI goes fully green. (2) When satisfied with rc.2, **promote to final `v2.0.0`** — tag off develop HEAD
+(`6eb7477`+) and create the GitHub release (release.yml builds `tandem-2.0.0.zip` + SBOM). (3) Resume P4
+**ISS-260712-reconfigure-platinum** (bronze→platinum flip). Optional: **ISS-260713-orphan-carelink-statistics**
+(HA recorder cleanup). Remaining env non-blockers: ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
 
 ---
 
 ## Current Priorities
 
-1. **v2.0.0-rc.1 live test** (In-flight above) — validate on real pump, then merge PR #70 + promote to v2.0.0
+1. **Promote to final `v2.0.0`** (In-flight above) — rc.2 live-validated + PR #70 merged; tag off develop when ready. Gate: SONAR_TOKEN rotation (ISS-004).
 2. **ISS-260712-reconfigure-platinum** — last P4 item; reconfigure/repair polish → flip quality_scale bronze→platinum
 3. **ISS-004** — rotate expired SONAR_TOKEN (SonarCloud 403); **ISS-260712-brands-registration** — home-assistant/brands PR
 4. **ISS-012** — HACS review findings (older; verify still relevant post-rewrite)
@@ -44,6 +48,18 @@ Last remaining P4 Platinum item. Polish the reconfigure + repair flows, then fli
 `custom_components/tandem/manifest.json` `quality_scale` **bronze → platinum** and re-run
 hassfest / HACS validate. The v2.0.0-rc.1 release intentionally ships at `bronze` — no Platinum
 claim until this lands and validates. Tracked long-form in `docs/quality-gates.md` / STANDARDS-tandem §4.
+
+### ISS-260713-orphan-carelink-statistics — Purge leftover old-carelink statistics from HA recorder
+**Type:** Ops / live-HA cleanup (not a repo code change)
+**Priority:** Low (cosmetic)
+**Created:** 2026-07-13
+**Status:** 🟡 Open — user-side HA action
+After the carelink→tandem migration, HA's recorder still holds statistic_ids under the old
+`sensor.<child>_s_bedroom_t_slim_2_*` names (never purged when the old `carelink` integration was
+uninstalled). On v2 startup HA logged collisions (`Cannot rename statistic_id … already exists`,
+`Cannot migrate history for entity_id …`). Harmless — v2 produces clean `sensor.tandem_*` entities —
+but the stale long-term stats linger. Fix: HA → Developer Tools → Statistics → resolve the flagged
+"issues" (fix/remove the orphaned ids), or script via the recorder. No code impact.
 
 ### ISS-260712-brands-registration — Register `tandem` domain in home-assistant/brands
 **Type:** Distribution / HACS
