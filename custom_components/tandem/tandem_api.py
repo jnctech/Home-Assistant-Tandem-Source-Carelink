@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import hashlib
 import json
 import logging
@@ -28,10 +29,13 @@ import ssl
 import struct
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 from urllib.parse import urlencode, urlparse, parse_qs
 
 import certifi
 import httpx
+
+from .exceptions import TandemApiError, TandemAuthError  # noqa: F401  (re-exported for callers)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,13 +43,10 @@ USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 )
 
-
-class TandemAuthError(Exception):
-    """Raised when authentication fails."""
-
-
-class TandemApiError(Exception):
-    """Raised when an API call fails."""
+# Per-request timeout (seconds). Applied on every call so behaviour is identical
+# whether we own the client or reuse Home Assistant's managed httpx client, whose
+# default timeout (5 s) is too short for the Tandem Source OIDC/report calls.
+REQUEST_TIMEOUT = 30.0
 
 
 # ── Binary pump event decoder ────────────────────────────────────────
@@ -91,7 +92,7 @@ EVT_CGM_DATA_FSL2 = 372
 EVT_CGM_DATA_G7 = 399
 
 
-def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
+def _decode_cgm_gxb_layout(evt: dict[str, Any], payload: bytes) -> None:
     """Decode GXB-style CGM payload (shared by events 256 and 399)."""
     evt["event_name"] = "CGM"
     evt["glucose_mgdl"] = struct.unpack_from(">H", payload, 4)[0]
@@ -100,7 +101,7 @@ def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
     evt["status"] = struct.unpack_from(">H", payload, 2)[0]
 
 
-def decode_pump_events(raw_b64: str) -> list[dict]:
+def decode_pump_events(raw_b64: str) -> list[dict[str, Any]]:
     """Decode base64-encoded binary pump events into a list of dicts.
 
     Each returned dict contains:
@@ -112,14 +113,14 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
     """
     try:
         raw_bytes = base64.b64decode(raw_b64)
-    except (ValueError, base64.binascii.Error) as e:
+    except (ValueError, binascii.Error) as e:
         _LOGGER.error("Failed to base64-decode pump events: %s", e)
         return []
 
     num_events = len(raw_bytes) // EVENT_LEN
     _LOGGER.debug("Decoding %d pump events (%d bytes)", num_events, len(raw_bytes))
 
-    events = []
+    events: list[dict[str, Any]] = []
     event_id_counts: dict[int, int] = {}
     for i in range(num_events):
         chunk = raw_bytes[i * EVENT_LEN : (i + 1) * EVENT_LEN]
@@ -139,7 +140,7 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
         ts = datetime.fromtimestamp(TANDEM_EPOCH + ts_raw, tz=timezone.utc).replace(tzinfo=None)
         event_id_counts[event_id] = event_id_counts.get(event_id, 0) + 1
 
-        evt = {
+        evt: dict[str, Any] = {
             "event_id": event_id,
             "timestamp": ts,
             "seq": seq,
@@ -508,7 +509,13 @@ class TandemSourceClient:
         },
     }
 
-    def __init__(self, email: str, password: str, region: str = "EU"):
+    def __init__(
+        self,
+        email: str,
+        password: str,
+        region: str = "EU",
+        session: httpx.AsyncClient | None = None,
+    ):
         self.email = email
         self.password = password
         self.region = region.upper()
@@ -522,18 +529,26 @@ class TandemSourceClient:
         self.account_id: str | None = None
         self.token_expires_at: float = 0
 
-        self._client: httpx.AsyncClient | None = None
+        # When a session is injected (Home Assistant's managed httpx client) we
+        # reuse it and never build or close our own — HA owns its lifecycle. Only
+        # when constructed standalone (tests, scripts) do we own a self-made client.
+        self._client: httpx.AsyncClient | None = session
+        self._owns_client: bool = session is None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the async HTTP client.
+        """Return the async HTTP client.
 
-        Creates the SSL context in an executor to avoid blocking the event loop
-        with load_verify_locations().
+        When Home Assistant's managed client was injected, reuse it verbatim —
+        never rebuild or close it. Otherwise lazily build our own, creating the SSL
+        context in an executor to avoid blocking the event loop with
+        load_verify_locations().
         """
+        if not self._owns_client:
+            return self._client  # type: ignore[return-value]  # injected, non-None by construction
         if self._client is None or self._client.is_closed:
             loop = asyncio.get_running_loop()
 
-            def _build_ssl_ctx():
+            def _build_ssl_ctx() -> ssl.SSLContext:
                 ctx = ssl.create_default_context(cafile=certifi.where())
                 ctx.minimum_version = ssl.TLSVersion.TLSv1_2
                 return ctx
@@ -576,7 +591,11 @@ class TandemSourceClient:
 
         # Step 1: Initialize session (establish cookies)
         try:
-            await client.get(self.LOGIN_PAGE_URL)
+            await client.get(
+                self.LOGIN_PAGE_URL,
+                headers=self._login_headers(),
+                timeout=REQUEST_TIMEOUT,
+            )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Cannot reach login page: {e}") from e
 
@@ -585,7 +604,8 @@ class TandemSourceClient:
             login_resp = await client.post(
                 self.urls["LOGIN_API"],
                 json={"username": self.email, "password": self.password},
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Login request failed: {e}") from e
@@ -613,9 +633,16 @@ class TandemSourceClient:
         }
 
         try:
+            # The OAuth authorization code is delivered via a 302 to the
+            # redirect_uri (…/callback?code=…). We must follow that redirect to
+            # read the code off the final URL. An injected Home Assistant client
+            # (get_async_client) defaults to follow_redirects=False, so force it
+            # per-request rather than rely on the client's default.
             auth_resp = await client.get(
                 self.urls["AUTHORIZE"] + "?" + urlencode(auth_params),
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
+                follow_redirects=True,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Authorization request failed: {e}") from e
@@ -644,7 +671,8 @@ class TandemSourceClient:
             token_resp = await client.post(
                 self.urls["TOKEN"],
                 data=token_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers=self._login_headers({"Content-Type": "application/x-www-form-urlencoded"}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Token exchange failed: {e}") from e
@@ -672,12 +700,14 @@ class TandemSourceClient:
             self.region,
         )
 
-    def _extract_jwt_claims(self):
+    def _extract_jwt_claims(self) -> None:
         """Extract claims from the id_token JWT payload.
 
         We skip cryptographic verification since we received the token over
         HTTPS directly from the token endpoint.
         """
+        if self.id_token is None:
+            raise TandemAuthError("No id_token available to decode")
         parts = self.id_token.split(".")
         if len(parts) != 3:
             raise TandemAuthError("Invalid JWT format")
@@ -704,14 +734,26 @@ class TandemSourceClient:
             self.account_id,
         )
 
-    def _api_headers(self) -> dict:
+    def _login_headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+        """Headers for the unauthenticated OIDC login requests.
+
+        Carries the User-Agent explicitly rather than relying on a client-level
+        default, so the login flow behaves identically on Home Assistant's managed
+        client (which has no default UA) as on our self-made one.
+        """
+        headers = {"User-Agent": USER_AGENT}
+        if extra:
+            headers.update(extra)
+        return headers
+
+    def _api_headers(self) -> dict[str, str]:
         """Get headers for authenticated API requests."""
         return {
             "Authorization": f"Bearer {self.access_token}",
             "User-Agent": USER_AGENT,
         }
 
-    async def _api_get(self, url: str, _retries: int = 2) -> dict:
+    async def _api_get(self, url: str, _retries: int = 2) -> Any:
         """Make an authenticated GET request with automatic re-login on 401.
 
         Retries transient network errors (connection reset, timeout, DNS)
@@ -722,7 +764,7 @@ class TandemSourceClient:
 
         for attempt in range(_retries + 1):
             try:
-                resp = await client.get(url, headers=self._api_headers())
+                resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
                 break
             except (
                 httpx.ConnectError,
@@ -753,7 +795,7 @@ class TandemSourceClient:
             await self.login()
             if not self.access_token:
                 raise TandemAuthError("Re-authentication succeeded but no token obtained")
-            resp = await client.get(url, headers=self._api_headers())
+            resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
 
         if resp.status_code != 200:
             raise TandemApiError(f"API GET {url} failed ({resp.status_code}): {resp.text[:300]}")
@@ -762,11 +804,13 @@ class TandemSourceClient:
 
     # ── Tandem Source API endpoints ──────────────────────────────────────
 
-    async def get_pumper_info(self) -> dict:
+    async def get_pumper_info(self) -> dict[str, Any]:
         """Get user and pump information."""
-        return await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        return cast(
+            "dict[str, Any]", await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        )
 
-    async def get_pump_event_metadata(self) -> list:
+    async def get_pump_event_metadata(self) -> list[dict[str, Any]]:
         """Get pump event metadata (serial, model, last upload, etc.).
 
         Returns a list of dicts, one per pump on the account. Each dict has:
@@ -774,15 +818,18 @@ class TandemSourceClient:
         maxDateWithEvents, lastUpload, patientName, patientDateOfBirth,
         patientCareGiver, softwareVersion, partNumber
         """
-        return await self._api_get(
-            f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/{self.pumper_id}/pumpeventmetadata"
+        return cast(
+            "list[dict[str, Any]]",
+            await self._api_get(
+                f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/{self.pumper_id}/pumpeventmetadata"
+            ),
         )
 
     # ── ControlIQ API endpoints ──────────────────────────────────────────
     # These use the TDC services base URL and may or may not accept the
     # Tandem Source OIDC access token. Failures are handled gracefully.
 
-    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy timeline data (basal, bolus, CGM readings).
 
         Args:
@@ -797,12 +844,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/therapytimeline/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy timeline not available: %s", e)
             return None
 
-    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict | None:
+    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch dashboard summary statistics.
 
         Args:
@@ -817,12 +864,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/summary/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Dashboard summary not available: %s", e)
             return None
 
-    async def get_therapy_events(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_events(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy events used by the webui Therapy Timeline.
 
         Args:
@@ -836,14 +883,16 @@ class TandemSourceClient:
                 f"TherapyEvents/{start_date}/{end_date}/false?userId={user_guid}"
             )
             _LOGGER.debug("Tandem: Attempting therapy_events API: %s", url)
-            result = await self._api_get(url)
+            result: dict[str, Any] = await self._api_get(url)
             _LOGGER.debug("Tandem: therapy_events returned type=%s", type(result).__name__)
             return result
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy events API not available: %s", e)
             return None
 
-    async def get_pump_events(self, device_id: str | int, start_date: str, end_date: str) -> list[dict] | None:
+    async def get_pump_events(
+        self, device_id: str | int, start_date: str, end_date: str
+    ) -> list[dict[str, Any]] | None:
         """Fetch and decode pump events from the Source Reports API.
 
         The pumpevents endpoint returns base64-encoded binary data using
@@ -950,7 +999,7 @@ class TandemSourceClient:
         self,
         pump_timezone: str | None = None,
         fallback_date: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Fetch all available recent data from Tandem Source APIs.
 
         Parallelises independent API calls where possible.
@@ -983,7 +1032,7 @@ class TandemSourceClient:
         now_pump = datetime.now(tz)
         week_ago_pump = now_pump - timedelta(days=7)
 
-        data: dict = {
+        data: dict[str, Any] = {
             "pump_metadata": None,
             "pumper_info": None,
             "pump_events": None,
@@ -992,6 +1041,10 @@ class TandemSourceClient:
         }
 
         # ── Phase 1: metadata + pumper_info in parallel ──────────────
+        # Pre-declare the unpack targets: mypy cannot infer the tuple element
+        # types through asyncio.gather(return_exceptions=True) unpacking.
+        metadata_result: dict[str, Any] | None | BaseException
+        pumper_result: dict[str, Any] | None | BaseException
         metadata_result, pumper_result = await asyncio.gather(
             self._fetch_pump_metadata(),
             self._fetch_pumper_info(),
@@ -1062,6 +1115,8 @@ class TandemSourceClient:
                 tz,
             )
 
+            timeline_result: dict[str, Any] | None | BaseException
+            summary_result: dict[str, Any] | None | BaseException
             timeline_result, summary_result = await asyncio.gather(
                 self.get_therapy_timeline(start_mm, end_mm),
                 self.get_dashboard_summary(start_mm, end_mm),
@@ -1086,7 +1141,7 @@ class TandemSourceClient:
 
         return data
 
-    async def _fetch_pump_metadata(self) -> dict | None:
+    async def _fetch_pump_metadata(self) -> dict[str, Any] | None:
         """Fetch and extract first pump metadata entry."""
         metadata_list = await self.get_pump_event_metadata()
         if isinstance(metadata_list, list) and metadata_list:
@@ -1095,18 +1150,24 @@ class TandemSourceClient:
             return metadata_list
         return None
 
-    async def _fetch_pumper_info(self) -> dict | None:
+    async def _fetch_pumper_info(self) -> dict[str, Any] | None:
         """Fetch pumper info."""
         return await self.get_pumper_info()
 
-    async def close(self):
-        """Close the HTTP client."""
+    async def close(self) -> None:
+        """Close the HTTP client we own.
+
+        A no-op when the client was injected by Home Assistant — closing the
+        shared managed client would break every other consumer of it.
+        """
+        if not self._owns_client:
+            return
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
 
 
-def parse_dotnet_date(date_str) -> datetime | None:
+def parse_dotnet_date(date_str: str) -> datetime | None:
     """Parse .NET /Date(epoch_ms)/ or /Date(epoch_ms+offset)/ format.
 
     Also handles plain ISO 8601 date strings and epoch integers.

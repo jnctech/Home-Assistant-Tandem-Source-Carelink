@@ -4,6 +4,136 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260713-oauth-redirect-authfix — Fix v2 live auth (OAuth redirect not followed) + config-flow translations
+**Date:** 2026-07-13
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** Fixed + live-validated on real pump; RC-blocker for v2.0.0
+
+### What changed
+| Area | Change |
+|------|--------|
+| `tandem_api.py` | Authorize GET now passes `follow_redirects=True`. The OAuth authorization code arrives via a 302 to `…/callback?code=…`; the injected Home Assistant client (`get_async_client`) defaults to `follow_redirects=False`, so the code was never captured → `TandemAuthError: No authorization code in redirect URL` → surfaced as `invalid_auth`. Regression introduced by the inject-websession refactor (CR-260710); the old standalone client had `follow_redirects=True`. |
+| `translations/en.json` | Replaced 6 `[%key:common::config_flow::…%]` references with literal English strings (`Invalid authentication`, `Failed to connect`, etc.). Core resolves `[%key:]` at build time; a custom component ships them as-is, so HA rendered the raw key `[%key:common::config_flow::error::invalid_auth%]` to the user. `strings.json` left as the reference-form source. |
+| `tests/test_tandem_api.py` | Added `test_login_authorize_follows_redirects` — asserts the authorize GET is called with `follow_redirects=True`. The existing login tests pre-set `mock_auth_resp.url` (simulating an already-followed redirect), which is why unit tests were green while live auth failed. |
+
+### How found / validated
+Live-validated via `/validate-live-tandem` after manually staging v2.0.0-rc.1 to the running HA
+(`domain=tandem`). Root cause read from the in-memory `system_log` (`No authorization code in redirect URL`).
+Post-fix: config entry `loaded`, 70 `tandem_*` entities, `binary_sensor.tandem_data_stale` present.
+⚠️ Unit tests (`test_tandem_api.py`, `test_tandem_config_flow.py`) need a **remote** run to confirm the new
+test passes (local pytest not run per project rule).
+
+---
+
+## CR-260712-untrack-internal-docs — Untrack internal docs leaked to public repo
+**Date:** 2026-07-12
+**Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `20e7ddc`)
+**Status:** Done — pushed to `origin` (public); `gitea` mirror push failed (ISS-260712-gitea-token-expired)
+
+### What changed
+| Area | Change |
+|------|--------|
+| `.gitignore` | Single-file exclusion (`docs/internal/oob-standards-pointer.md`) replaced with the whole `docs/internal/` directory — session handoffs, oob governance pointers, and reverse-eng notes now ignored wholesale. |
+| tracking | `git rm -r --cached docs/internal/` — untracked `RESUME-greenfield-refactor-2026-07-10.md`, `hacs-default-submission.md`, `tandem-source-api-binary-events.md` (local copies retained). |
+
+### Exposure assessment (why history was NOT scrubbed)
+The 3 files were tracked + public on `origin/develop`+`origin/master` since 2026-03-16 (~4 months).
+Full read of all three: **no PII, no credentials, no secret config** — only internal-process references
+(oob governance, build paths, SHAs) and reverse-engineered protocol IP; the HACS submission file was
+public-by-design. **Decision: stop future tracking, leave history intact.** A scrub would rewrite
+develop+master+5 branches+tags v1.5.0/v1.6.0 across two remotes, break draft PR #70 + the RC release,
+and still not retract copies already cloned/forked/cached — disproportionate for non-secret content
+with nothing to rotate. (Operator-ratified this session.)
+
+---
+
+## CR-260712-v2-rc-release — Publish v2.0.0-rc.1 (Tandem-only rewrite RC)
+**Date:** 2026-07-12
+**Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `fa606fa`)
+**Status:** Released (pre-release) — awaiting live-pump validation
+
+### What changed
+| Area | Change |
+|------|--------|
+| reconcile | Merged `origin/develop` (OpenSSF #64, `GITHUB_TOKEN` permission restriction) into the feature branch → 20 ahead / 0 behind. Tandem rewrite intact; no carelink files resurrected. |
+| version | `manifest.json` **1.0.0 → 2.0.0**. Chosen over 1.0.0 so the tag sits above the carelink-era `v1.6.0` and HACS offers it as an upgrade; domain rename + Medtronic/Nightscout removal = SemVer MAJOR. README "fresh start" refs synced v1.0.0 → v2.0.0. |
+| release notes | CHANGELOG `[2.0.0-rc.1]` entry (Keep a Changelog + breaking-change callout + compare link); modern highlights-style GitHub release body. |
+| release | GitHub **pre-release** `v2.0.0-rc.1` off branch HEAD; `release.yml` built + attached `tandem-2.0.0.zip` + SBOM. Draft PR #70 (feature → develop) opened to run CI. |
+| CI (fork) | Re-enabled the `Validate` workflow (was `disabled_inactivity` — GitHub disables fork workflows after ~60d). |
+
+### Why
+Deliver an installable RC for live-pump validation (custom-repo + HACS beta) and force release hygiene now. `quality_scale` intentionally stays **bronze** — no Platinum claim until ISS-260712-reconfigure-platinum lands.
+
+### Verification (PR #70 CI, Python 3.13)
+| Gate | Result |
+|------|--------|
+| Python Tests | ✅ 376 passed |
+| mypy --strict | ✅ clean |
+| hassfest | ✅ pass |
+| ruff / bandit / gitleaks | ✅ clean |
+| HACS validate | ⚠️ fails only on `brands` (→ ISS-260712-brands-registration); all other sub-checks pass |
+| SonarCloud | ⚠️ SONAR_TOKEN 403 expired (→ ISS-004) |
+| conflicts | ⚠️ broken 3rd-party action (→ ISS-260712-conflicts-action-broken); PR MERGEABLE |
+
+### Follow-ups
+Live test (pump 2026-07-12 PM) → merge PR #70 + promote rc.1 → `v2.0.0`. ISS-004, ISS-260712-brands-registration, ISS-260712-conflicts-action-broken are environmental (operator/upstream).
+
+## CR-260711-strict-typing — Strict typing pass (P4 Platinum) + test-double fidelity refactor
+**Date:** 2026-07-11
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** In Review
+
+### What changed
+| Area | Change |
+|------|--------|
+| mypy | `[tool.mypy] strict = true`; dropped the `coordinator`/`tandem_api` `ignore_errors` override. All 14 modules pass `mypy --strict` (~150 errors resolved). |
+| deps | `types-aiofiles==24.1.0.20240626` added; test image rebuilt. |
+| typing (real fixes, not just annotations) | `DeviceInfo` imported from `homeassistant.helpers.device_registry` (not the non-exporting `helpers.entity`); `EntityCategory` from `homeassistant.const`; `config_flow` returns `ConfigFlowResult` + uses `_get_reconfigure_entry()` (removes an unguarded `None.data` path); `TandemEntity(CoordinatorEntity[TandemCoordinator])` generic + per-subclass `sensor_description` narrowing; **`StatisticMetaData` now passes required `mean_type=StatisticMeanType.ARITHMETIC` + `unit_class`** (recorder API added these — was silently missing); `id_token` None-guard in JWT decode; `binascii.Error` (was `base64.binascii`); gather-unpack pre-declarations. |
+| exceptions | `TandemApiError`/`TandemAuthError` imported from `.exceptions` (no longer re-exported via `tandem_api`). |
+| CI | New `typecheck` job (`mypy --strict`, py3.13); **all CI/dev Python bumped 3.12 → 3.13** (ci.yml, sonarcloud.yml, CONTRIBUTING.md, .devcontainer/Dockerfile) — HA 2026.2 requires 3.13, closes the toolchain skew. |
+| tests (operator: "use proper tests") | The 3 statistics test files faked the entire `homeassistant.components.recorder` module via `sys.modules` injection + hand-rolled stand-ins — which is exactly why the `mean_type`/`unit_class` drift was invisible. Replaced with a shared `mock_import` fixture (conftest) that patches only the **real** `async_import_statistics` boundary and keeps HA's real `StatisticMetaData`/`StatisticData`; assertions use subscript access. Net −250 lines of scaffolding. |
+| safety | `.gitignore` now blocks `*_diagnostics_*.json` (device-PII dumps — previously unmatched gap). |
+
+### Why
+Completes the P4 Platinum `strict-typing` gap (tracked `docs/quality-gates.md`; STANDARDS-tandem §4/§8 had it as TARGET ◐). The test refactor makes recorder-API contract drift fail loudly instead of being masked by a stale stand-in — seed for the estate `test-double-fidelity` amendment oob is adopting into `STANDARD-code-quality §1`.
+
+### Verification (remote docker 3.13)
+| Gate | Result |
+|------|--------|
+| mypy --strict (14 modules) | ✅ clean |
+| Tests | ✅ 376 passed + 140 snapshots |
+| ruff check / format | ✅ clean |
+| bandit / gitleaks | ✅ clean |
+
+---
+
+## CR-260710-greenfield-tandem-v1 — Greenfield Tandem-only V1 (domain carelink → tandem)
+**Date:** 2026-07-10
+**Branch:** `claude/domain-codebase-refactor-fgc4fv`
+**Status:** In Review
+
+### What changed
+| Area | Change |
+|------|--------|
+| domain | `carelink` → `tandem`; `manifest.version` 1.6.0 → 1.0.0; `ConfigFlow VERSION 1`. Clean break, no migration (ADR-007). |
+| scope | Removed the Medtronic CareLink path (`api.py`, `CarelinkCoordinator`) and the Nightscout uploader. Tandem t:slim only. |
+| structure | House layout: thin `__init__.py` + `coordinator.py` + `entity.py` + `sensor_types.py`/`binary_sensor_types.py` + `diagnostics.py` + `exceptions.py` + `util.py`. Research (decoders, sensor maps, region auth) moved verbatim. |
+| safety | Fail-visible staleness — stale decision-input sensors go unavailable; new `binary_sensor.tandem_data_stale` health surface (ADR-008; STANDARD-stable-anchor rule 3). |
+| tests | Deleted carelink/nightscout suites; retargeted Tandem suite; added syrupy entity-goldens + invariants (ADR-009). 373 passing, 88% coverage. |
+| toolchain | HA 2026.2 / Python 3.13; `pyproject.toml` coverage gate (80%) + mypy config; CI paths `carelink → tandem`. |
+| docs/i18n | strings/en.json aligned to the single-step flow (nightscout/carelink fields removed); stale de/fr/nl/ru translations removed; README/info/TROUBLESHOOTING made Tandem-only; `docs/quality-gates.md` added (tier + Platinum gap). |
+
+### Why
+HACS default store rejected the `carelink`-domain submission (mismatched domain, Medtronic +
+Nightscout baggage). This re-bases the proven Tandem research as a coherent, single-purpose
+integration aiming HA Quality Scale Platinum.
+
+### Follow-ups (not in this change)
+inject-websession, strict-typing pass (coordinator/tandem_api), `runtime_data` migration,
+entity translations — tracked in `docs/quality-gates.md` and the resume note.
+
+---
+
 ## CR-260316-iss-012-hacs-compliance — HACS Compliance Fixes (ISS-012)
 **Date:** 2026-03-16
 **Branch:** `feature/iss-012-hacs-compliance`

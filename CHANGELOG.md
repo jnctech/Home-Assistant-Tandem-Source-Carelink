@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.0.0-rc.2] - 2026-07-13
+
+### Fixed
+- **Live authentication in Home Assistant** (`invalid_auth` on setup) — the OAuth authorize
+  request now follows the redirect that carries the authorization code
+  (`follow_redirects=True`). Home Assistant's injected httpx client defaults to
+  `follow_redirects=False`, so rc.1 never captured the code and login failed on real setups.
+  The `inject-websession` change in rc.1 had dropped the redirect-following the previous
+  standalone client did by default. Fix validated end-to-end against a live pump.
+- **Config-flow error text** — replaced unresolved `[%key:common::config_flow::…]` references
+  in `translations/en.json` with literal strings, so Home Assistant no longer renders the raw
+  `[%key:common::config_flow::error::invalid_auth%]` key to the user.
+
+## [2.0.0-rc.1] - 2026-07-11
+
+> ### ⚠️ Breaking change — this is a ground-up rewrite
+> The integration has moved to the **`tandem`** domain and is now **Tandem t:slim only**.
+> The Medtronic CareLink path and the Nightscout uploader have been **removed**. There is
+> **no automatic migration** from the old `carelink`-domain config entry — you must remove the
+> old integration and add **Tandem t:slim Pump** fresh. See
+> [Upgrading](README.md#upgrading-from-the-old-carelink-domain-releases). This supersedes the
+> entire `carelink`-era 1.x line; the major version bump reflects the incompatible domain change.
+
+### Added
+- **"Data stale" health binary sensor** (`binary_sensor.tandem_data_stale`) — surfaces sync
+  freshness as a first-class, fail-visible health signal instead of silently blanking sensors.
+- **Entity golden snapshot tests** (syrupy) paired with invariant assertions, locking the full
+  entity surface (140 snapshots) against regression.
+
+### Changed
+- **Domain renamed `carelink` → `tandem`**; all entities are now `sensor.tandem_*` /
+  `number.tandem_*` / `binary_sensor.tandem_*`.
+- **Uses Home Assistant's managed httpx client** instead of constructing its own — aligns with
+  HA's connection lifecycle and the Quality Scale `inject-websession` rule.
+- **Modern toolchain** — targets Home Assistant 2026.2 on **Python 3.13**; CI, dev container,
+  and pre-commit pinned to 3.13.
+
+### Removed
+- **Medtronic CareLink** integration path (coordinator, API, config flow, translations).
+- **Nightscout uploader** and all associated configuration.
+
+### Internal / Quality (Platinum hardening — in progress)
+- **Strict typing** — `mypy --strict` clean across all modules; per-entry state moved to
+  `entry.runtime_data`.
+- **Test-double fidelity** — statistics tests now patch only the real `async_import_statistics`
+  boundary and keep HA's real `StatisticMetaData`/`StatisticData` types (previously faked the
+  whole recorder module, masking the TypedDict contract).
+- **Supply-chain** — `GITHUB_TOKEN` permissions restricted in CI (OpenSSF Scorecard).
+- **376 unit tests + 140 entity snapshots** green on Python 3.13.
+- `quality_scale` remains **bronze** for this RC; reconfigure/repair polish is the remaining
+  gate before the Platinum flip.
+
 ## [1.4.0] - 2026-03-07
 
 > **Breaking change** — entity IDs now use a `tandem_` prefix (e.g. `sensor.last_glucose_level_mmol`
@@ -263,6 +315,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Guardian Connect CGM
 - Nightscout upload capability
 
+[2.0.0-rc.1]: https://github.com/jnctech/ha-tandem-pump/compare/v1.6.0...v2.0.0-rc.1
 [1.2.3]: https://github.com/jnctech/ha-tandem-pump/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/jnctech/ha-tandem-pump/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/jnctech/ha-tandem-pump/compare/v1.2.0...v1.2.1

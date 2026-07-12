@@ -1,7 +1,12 @@
 # ADR-001: Long-Term Statistics — Two Data Paths
 
 **Date:** 2026-03-13
-**Status:** Accepted
+**Status:** Accepted — statistic-id premise superseded by ADR-007
+
+> **Note (2026-07-10, ADR-007):** this ADR was written under the `carelink` domain and refers to
+> `sensor.carelink_*` statistic ids. Under the greenfield `tandem` domain those ids are
+> `sensor.tandem_*` by construction (they now match the live entity ids, fixing the former
+> double-prefix mismatch). The two-data-path decision itself still stands; only the id prefix changed.
 
 ## Context
 

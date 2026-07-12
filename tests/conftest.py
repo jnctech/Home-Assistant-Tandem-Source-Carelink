@@ -1,24 +1,20 @@
-"""Fixtures for Carelink / Tandem integration tests."""
+"""Fixtures for Tandem integration tests."""
 
 from __future__ import annotations
 
 from datetime import timedelta
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from syrupy.assertion import SnapshotAssertion
 
-from custom_components.carelink.api import CarelinkClient
-from custom_components.carelink.nightscout_uploader import NightscoutUploader
-from custom_components.carelink.const import (
-    DOMAIN,
-    PLATFORM_TANDEM,
-    PLATFORM_TYPE,
-    TANDEM_CLIENT,
-)
+from custom_components.tandem.const import DOMAIN
 
 
 @pytest.fixture(autouse=True)
@@ -27,144 +23,38 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
-# ── Carelink (Medtronic) fixtures ──────────────────────────────────────────
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Return a syrupy snapshot assertion using the HA extension (.ambr files)."""
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
+
+
+# ── Recorder statistics capture ───────────────────────────────────────────
 
 
 @pytest.fixture
-def mock_token_data() -> dict[str, str]:
-    """Return mock token data.
+def mock_import():
+    """Patch the real recorder ``async_import_statistics`` and yield the mock.
 
-    Note: The JWT token contains a hardcoded expiration (exp: 9999999999 = Nov 2286)
-    to ensure tests don't fail due to token expiration. The payload contains:
-    - exp: 9999999999
-    - token_details: {"country": "NL", "preferred_username": "testuser"}
+    Deliberately keeps Home Assistant's real ``StatisticMetaData`` /
+    ``StatisticData`` / ``StatisticMeanType`` in play — only the side-effectful
+    import boundary is intercepted. Substituting fake recorder modules (the old
+    approach) hid the real TypedDict contract, so when the recorder API added the
+    required ``mean_type`` / ``unit_class`` keys the tests kept passing against a
+    stale stand-in. Patching the real symbol means such a drift fails loudly.
+
+    Captured calls carry the real ``StatisticMetaData``/``StatisticData`` dicts,
+    so assert with subscript access (``meta["statistic_id"]``, ``stats[0]["mean"]``).
     """
-    return {
-        "access_token": (
-            "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
-            "eyJleHAiOjk5OTk5OTk5OTksInRva2VuX2RldGFpbHMiOnsiY291bnRyeSI6Ik5MIiwicH"
-            "JlZmVycmVkX3VzZXJuYW1lIjoidGVzdHVzZXIifX0.fake"
-        ),
-        "refresh_token": "mock_refresh_token",
-        "client_id": "mock_client_id",
-        "client_secret": "mock_client_secret",
-        "mag-identifier": "mock_mag_identifier",
-    }
-
-
-@pytest.fixture
-def mock_recent_data() -> dict[str, Any]:
-    """Return mock recent data from Carelink API."""
-    return {
-        "clientTimeZoneName": "Europe/Amsterdam",
-        "lastConduitDateTime": "2024-01-15T12:00:00.000Z",
-        "pumpBatteryLevelPercent": 75,
-        "conduitBatteryLevel": 100,
-        "gstBatteryLevel": 80,
-        "sensorDurationHours": 120,
-        "sensorDurationMinutes": 30,
-        "reservoirLevelPercent": 50,
-        "reservoirAmount": 100,
-        "reservoirRemainingUnits": 50,
-        "lastSGTrend": "FLAT",
-        "timeToNextCalibHours": 6,
-        "averageSG": 120,
-        "belowHypoLimit": 5,
-        "aboveHyperLimit": 10,
-        "timeInRange": 85,
-        "maxAutoBasalRate": 2.5,
-        "sgBelowLimit": 70,
-        "pumpCommunicationState": True,
-        "gstCommunicationState": True,
-        "conduitInRange": True,
-        "conduitMedicalDeviceInRange": True,
-        "conduitSensorInRange": True,
-        "conduitSerialNumber": "MOCK123456",
-        "firstName": "Test",
-        "lastName": "User",
-        "pumpModelNumber": "MMT-1780",
-        "appModelType": "Guardian",
-        "activeInsulin": {
-            "amount": 2.5,
-            "datetime": "2024-01-15T11:30:00.000Z",
-        },
-        "lastAlarm": {
-            "dateTime": "2024-01-15T10:00:00.000Z",
-            "faultId": 123,
-            "GUID": "mock-guid",
-        },
-        "therapyAlgorithmState": {
-            "autoModeShieldState": "SAFE_BASAL",
-        },
-        "markers": [],
-        "sgs": [
-            {
-                "timestamp": "2024-01-15T12:00:00.000Z",
-                "sg": 120,
-                "sensorState": "NO_ERROR_MESSAGE",
-            },
-            {
-                "timestamp": "2024-01-15T11:55:00.000Z",
-                "sg": 118,
-                "sensorState": "NO_ERROR_MESSAGE",
-            },
-        ],
-        "notificationHistory": {
-            "clearedNotifications": [],
-        },
-        "medicalDeviceInformation": {
-            "manufacturer": "Medtronic",
-            "modelNumber": "MMT-1780",
-            "hardwareRevision": "1.0",
-            "firmwareRevision": "2.0",
-            "systemId": "MOCK_SYSTEM_ID",
-        },
-    }
-
-
-@pytest.fixture
-def mock_carelink_client(mock_token_data: dict[str, str], tmp_path) -> CarelinkClient:
-    """Return a CarelinkClient instance for testing."""
-    return CarelinkClient(
-        carelink_refresh_token=mock_token_data["refresh_token"],
-        carelink_token=mock_token_data["access_token"],
-        client_id=mock_token_data["client_id"],
-        client_secret=mock_token_data["client_secret"],
-        mag_identifier=mock_token_data["mag-identifier"],
-        carelink_patient_id="mock_patient_id",
-        config_path=str(tmp_path),
-    )
-
-
-@pytest.fixture
-def mock_nightscout_uploader() -> NightscoutUploader:
-    """Return a NightscoutUploader instance for testing."""
-    return NightscoutUploader(
-        nightscout_url="https://nightscout.example.com",
-        nightscout_secret="mock_api_secret",
-    )
+    mock = MagicMock()
+    with patch(
+        "homeassistant.components.recorder.statistics.async_import_statistics",
+        mock,
+    ):
+        yield mock
 
 
 # ── Config entry fixtures ─────────────────────────────────────────────────
-
-
-@pytest.fixture
-def mock_carelink_config_entry() -> MockConfigEntry:
-    """Return a MockConfigEntry for Carelink (Medtronic)."""
-    return MockConfigEntry(
-        domain=DOMAIN,
-        title="Carelink",
-        data={
-            "platform_type": "carelink",
-            "cl_token": "mock_token",
-            "cl_refresh_token": "mock_refresh",
-            "cl_client_id": "mock_client_id",
-            "cl_client_secret": "mock_secret",
-            "cl_mag_identifier": "mock_mag",
-            "patientId": "mock_patient",
-            "scan_interval": 60,
-        },
-    )
 
 
 @pytest.fixture
@@ -367,7 +257,7 @@ async def make_tandem_coordinator(
     Shared factory used by test_additional_sensors and test_extended_statistics
     to avoid duplicating the coordinator setup boilerplate.
     """
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -380,6 +270,7 @@ async def make_tandem_coordinator(
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -400,11 +291,6 @@ async def make_tandem_coordinator(
     mock_client.get_pump_event_metadata = AsyncMock(return_value=[{"maxDateWithEvents": "2026-03-01T12:00:00"}])
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
     await coordinator.async_config_entry_first_refresh()
     return coordinator

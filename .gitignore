@@ -181,6 +181,8 @@ tandem_api_response.json
 carelink_api_response.json
 *_api_response.json
 api_debug_*.json
+# Local pump diagnostics dumps (capture_diagnostics service) — contain device PII
+*_diagnostics_*.json
 # Exception: sanitised test fixtures in tests/ are safe to commit
 !tests/fixtures/*.json
 
@@ -200,3 +202,7 @@ config/
 test_config/
 carelink-integration-preview.png
 branding/
+
+# Internal-only docs (session handoffs, oob governance pointers, reverse-eng notes)
+# — not shipped in the public integration and never committed to the public repo.
+docs/internal/

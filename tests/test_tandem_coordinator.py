@@ -6,15 +6,13 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     UNAVAILABLE,
     DEVICE_PUMP_SERIAL,
     DEVICE_PUMP_MODEL,
@@ -47,7 +45,7 @@ async def _setup_tandem_coordinator(
     mock_recent_data: dict[str, Any],
 ):
     """Set up a TandemCoordinator with mocked API calls and return the coordinator."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -61,6 +59,7 @@ async def _setup_tandem_coordinator(
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     # Set up the mock client in hass.data
     mock_client = AsyncMock()
@@ -76,12 +75,7 @@ async def _setup_tandem_coordinator(
     )
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     await coordinator.async_config_entry_first_refresh()
     return coordinator
@@ -243,7 +237,7 @@ class TestTandemCoordinatorSgDelta:
 
     async def test_delta_calculated_on_second_update(self, hass: HomeAssistant):
         """Test delta is calculated between consecutive updates."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -256,6 +250,7 @@ class TestTandemCoordinatorSgDelta:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         # First response: SG = 120
         first_data = {
@@ -300,12 +295,7 @@ class TestTandemCoordinatorSgDelta:
         )
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         # First refresh
         await coordinator.async_config_entry_first_refresh()

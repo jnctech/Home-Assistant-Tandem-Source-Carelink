@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up your Tandem Source account",
+        "description": "Enter your Tandem Diabetes Source credentials. This connects to source.tandemdiabetes.com (US) or source.eu.tandemdiabetes.com (EU) to fetch data from your Tandem t:slim X2 pump.",
+        "data": {
+          "tandem_email": "Email address",
+          "tandem_password": "Password",
+          "tandem_region": "Region",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "Your Tandem Source credentials have expired or are invalid. Please re-enter them to continue.",
+        "data": {
+          "tandem_email": "Email address",
+          "tandem_password": "Password",
+          "tandem_region": "Region",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure integration",
+        "description": "Update your integration settings. Authentication credentials are preserved from the original setup.",
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]"
+    }
+  }
+}

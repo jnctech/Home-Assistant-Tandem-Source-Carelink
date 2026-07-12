@@ -11,13 +11,13 @@ Thank you for contributing. This document covers everything you need to get star
 | [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | VS Code dev container support |
 | Git | Version control |
 
-Python 3.12 is required for tests. The dev container provides it — no local Python install needed.
+Python 3.13 is required for tests. The dev container provides it — no local Python install needed.
 
 ---
 
 ## Dev Container Setup
 
-The recommended way to contribute is via the dev container. It provides Python 3.12, all dependencies, Ruff, Bandit, and Gitleaks pre-installed.
+The recommended way to contribute is via the dev container. It provides Python 3.13, all dependencies, Ruff, Bandit, and Gitleaks pre-installed.
 
 1. Clone the repository and open it in VS Code
 2. When prompted, click **"Reopen in Container"** (or run `Dev Containers: Reopen in Container` from the command palette)
@@ -29,7 +29,7 @@ That's it — the environment is ready.
 
 ## Running Tests
 
-**Locally (requires Python 3.12):**
+**Locally (requires Python 3.13):**
 ```bash
 pytest tests/ -v
 ```

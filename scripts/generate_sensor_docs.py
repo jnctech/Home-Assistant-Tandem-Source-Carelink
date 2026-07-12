@@ -1,6 +1,6 @@
 """Generate sensor documentation table from const.py definitions.
 
-Parses TANDEM_SENSORS from custom_components/carelink/const.py via AST
+Parses TANDEM_SENSORS from custom_components/tandem/const.py via AST
 and outputs a markdown table grouped by category.
 
 Usage:
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONST_PATH = REPO_ROOT / "custom_components" / "carelink" / "const.py"
+CONST_PATH = REPO_ROOT / "custom_components" / "tandem" / "const.py"
 README_PATH = REPO_ROOT / "README.md"
 
 TABLE_START_MARKER = "<!-- SENSOR_TABLE_START -->"

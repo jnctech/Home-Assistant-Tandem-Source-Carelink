@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from custom_components.carelink.tandem_api import (
+from custom_components.tandem.tandem_api import (
     TandemSourceClient,
     TandemAuthError,
     TandemApiError,
@@ -184,6 +184,36 @@ class TestTandemSourceClientClose:
         """Test closing when no client was created."""
         client = TandemSourceClient("user@test.com", "pass")
         await client.close()  # Should not raise
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TandemSourceClient injected (Home Assistant managed) session
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTandemSourceClientInjectedSession:
+    """An injected session is reused verbatim and never closed by us."""
+
+    async def test_get_client_returns_injected_session(self):
+        """_get_client returns the injected client without building its own."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        assert client._owns_client is False
+        assert await client._get_client() is injected
+
+    async def test_close_does_not_close_injected_session(self):
+        """close() must not aclose a Home-Assistant-owned shared client."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        await client.close()
+
+        injected.aclose.assert_not_called()
+        # The injected reference is retained (not nulled) so the client stays usable.
+        assert client._client is injected
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -624,6 +654,46 @@ class TestLoginErrors:
 
         with pytest.raises(TandemAuthError, match="Token exchange HTTP 400"):
             await client.login()
+
+    async def test_login_authorize_follows_redirects(self):
+        """Regression: the OAuth authorize GET must set follow_redirects=True.
+
+        The authorization code is delivered via a 302 to …/callback?code=….
+        When Home Assistant injects its shared client (get_async_client), that
+        client defaults to follow_redirects=False, so without an explicit
+        per-request override the code is never read and login fails with
+        `invalid_auth` in HA while passing here (the mock pre-sets .url). Guard
+        the override so the live regression cannot silently return.
+        """
+        client = TandemSourceClient("user@test.com", "pass")
+
+        mock_login_page = MagicMock()
+        mock_login_page.status_code = 200
+
+        mock_login_resp = MagicMock()
+        mock_login_resp.status_code = 200
+        mock_login_resp.json.return_value = {"status": "SUCCESS"}
+
+        mock_auth_resp = MagicMock()
+        mock_auth_resp.url = "https://example.com/callback?code=test_auth_code"
+
+        # Stop the flow at token exchange — we only assert the authorize call.
+        mock_token_resp = MagicMock()
+        mock_token_resp.status_code = 400
+        mock_token_resp.text = "stop here"
+
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=[mock_login_page, mock_auth_resp])
+        mock_http.post = AsyncMock(side_effect=[mock_login_resp, mock_token_resp])
+        mock_http.is_closed = False
+        client._client = mock_http
+
+        with pytest.raises(TandemAuthError):
+            await client.login()
+
+        # The authorize request is the 2nd GET (after the login page).
+        authorize_call = mock_http.get.call_args_list[1]
+        assert authorize_call.kwargs.get("follow_redirects") is True
 
 
 # ═══════════════════════════════════════════════════════════════════════════
