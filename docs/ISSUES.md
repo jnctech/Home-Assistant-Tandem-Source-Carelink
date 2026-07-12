@@ -9,10 +9,11 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 **RC published, live test pending.** `v2.0.0-rc.1` is live as a GitHub **pre-release**
 (https://github.com/jnctech/ha-tandem-pump/releases/tag/v2.0.0-rc.1) off branch
-`feature/iss-260523-v2-domain-rename` (HEAD `fa606fa`, pushed, 20 ahead / 0 behind develop).
-Draft **PR #70** (feature → develop) is open with all **code** CI green (376 tests, mypy --strict,
-hassfest, ruff, bandit, gitleaks); 3 red checks are environmental non-blockers → ISS-004 (SONAR 403),
-ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+`feature/iss-260523-v2-domain-rename` (branch HEAD `20e7ddc`, RC tag on `fa606fa`, pushed,
+21 ahead / 0 behind develop). Draft **PR #70** (feature → develop) is open with all **code** CI green
+(376 tests, mypy --strict, hassfest, ruff, bandit, gitleaks); 3 red checks are environmental
+non-blockers → ISS-004 (SONAR 403), ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+Latest: `20e7ddc` untracked internal docs leaked to public repo (CR-260712-untrack-internal-docs).
 
 **Next session prompt:** Run the live-pump validation of `v2.0.0-rc.1` (pump available 2026-07-12 PM).
 Resolve `/validate-live-tandem` UNVERIFIED prereqs first (HA host, creds source, ground-truth source),
@@ -63,6 +64,17 @@ install (placeholder icon only). Do not open the upstream PR without explicit op
 The `conflicts` check (`mschilde/auto-label-merge-conflicts`) fails on PR #70 — its Docker image
 won't build (`yarn: not found`). Not a real merge conflict (PR is MERGEABLE); pure infra noise.
 Pin the action to a working ref, replace it with a maintained equivalent, or remove the workflow.
+
+### ISS-260712-gitea-token-expired — Gitea mirror push rejected (dead embedded token)
+**Type:** Infra hygiene
+**Priority:** Low
+**Created:** 2026-07-12
+**Status:** 🟡 Open
+The `gitea` remote (`gitea.colebungalow.com/jc/ha-tandem-pump`) has an access token embedded in the
+`.git/config` URL that is now **rejected** (`Unauthorized`) — expired or revoked. Push of `20e7ddc`
+to the mirror failed, so the gitea mirror is ≥1 commit behind `origin`. The dead plaintext token is
+harmless (not live) but should be cleaned up. Fix: refresh the token or switch the remote to SSH /
+a credential helper (stop storing a plaintext token in the URL), then re-push the branch.
 
 ### ISS-012 — HACS Review Findings
 **Type:** Quality / HACS Compliance

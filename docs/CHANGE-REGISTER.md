@@ -4,6 +4,28 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260712-untrack-internal-docs — Untrack internal docs leaked to public repo
+**Date:** 2026-07-12
+**Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `20e7ddc`)
+**Status:** Done — pushed to `origin` (public); `gitea` mirror push failed (ISS-260712-gitea-token-expired)
+
+### What changed
+| Area | Change |
+|------|--------|
+| `.gitignore` | Single-file exclusion (`docs/internal/oob-standards-pointer.md`) replaced with the whole `docs/internal/` directory — session handoffs, oob governance pointers, and reverse-eng notes now ignored wholesale. |
+| tracking | `git rm -r --cached docs/internal/` — untracked `RESUME-greenfield-refactor-2026-07-10.md`, `hacs-default-submission.md`, `tandem-source-api-binary-events.md` (local copies retained). |
+
+### Exposure assessment (why history was NOT scrubbed)
+The 3 files were tracked + public on `origin/develop`+`origin/master` since 2026-03-16 (~4 months).
+Full read of all three: **no PII, no credentials, no secret config** — only internal-process references
+(oob governance, build paths, SHAs) and reverse-engineered protocol IP; the HACS submission file was
+public-by-design. **Decision: stop future tracking, leave history intact.** A scrub would rewrite
+develop+master+5 branches+tags v1.5.0/v1.6.0 across two remotes, break draft PR #70 + the RC release,
+and still not retract copies already cloned/forked/cached — disproportionate for non-secret content
+with nothing to rotate. (Operator-ratified this session.)
+
+---
+
 ## CR-260712-v2-rc-release — Publish v2.0.0-rc.1 (Tandem-only rewrite RC)
 **Date:** 2026-07-12
 **Branch:** `feature/iss-260523-v2-domain-rename` (HEAD `fa606fa`)
