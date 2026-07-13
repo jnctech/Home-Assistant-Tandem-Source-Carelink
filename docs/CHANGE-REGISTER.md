@@ -4,6 +4,25 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260713-daily-accumulator-zero — Daily carb/bolus totals report 0 (not "unknown") when none today
+**Date:** 2026-07-13
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** Implemented + remote tests 381 pass (not yet deployed live)
+
+### What changed
+| Area | Change |
+|------|--------|
+| `coordinator.py` `_compute_insulin_summary` | `daily_carbs`, `daily_bolus_total`, `daily_bolus_count` now report **0** over an empty today-set (on a successful fetch) instead of `UNAVAILABLE`/None. A discrete daily accumulator over zero logged events is a genuine 0 ("none yet today"), not missing data — so the tile reads 0 from midnight instead of "unknown" until the first event. |
+| (unchanged, deliberately) | `daily_basal_total` + `total_daily_insulin` stay `UNAVAILABLE` when empty: basal is **continuous**, so an empty event window is a data gap and 0 would misrepresent "no insulin delivered" (null-not-guess). |
+| `tests/test_expanded_data.py` | `test_no_bolus_events_unavailable`→`_reports_zero` and `test_no_carbs_unavailable`→`_reports_zero`, now asserting `== 0`. |
+
+### Why
+`daily_carbs` read "unknown" earlier in the day (before any carb was logged), which reads as a fault on a
+dashboard. This is the discrete-accumulator half of the "unknown sensors" review; the event-gated raw
+sensors (bolus BG, PLGS, suspend reason) are left as genuine absence.
+
+---
+
 ## CR-260713-bolus-calc-surfacing — Surface bolus correction/food that the source has but sensors hid
 **Date:** 2026-07-13
 **Branch:** `feature/iss-260523-v2-domain-rename`

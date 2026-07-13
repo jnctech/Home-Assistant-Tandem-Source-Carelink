@@ -1729,11 +1729,16 @@ class TandemCoordinator(DataUpdateCoordinator):
         basal_rate_changes = _today_only(basal_rate_changes)
         carbs_entered = _today_only(carbs_entered)
 
-        # Daily bolus total: sum insulin_delivered from completed boluses
+        # Daily bolus total: sum insulin_delivered from completed boluses.
+        # Discrete daily accumulators (bolus total/count, carbs below) report 0 over
+        # an empty today-set on a successful fetch — a genuine "none yet today", not
+        # missing data — so the tile reads 0 from midnight instead of "unknown" until
+        # the first event. Basal/TDI are deliberately NOT zeroed (see below): basal is
+        # continuous, so an empty window is a data gap and 0 would misrepresent it.
         all_bolus = bolus_completed + bolex_completed
         bolus_total = sum(b.get("insulin_delivered", 0) for b in all_bolus if b.get("insulin_delivered"))
-        data[TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL] = round(bolus_total, 2) if all_bolus else UNAVAILABLE
-        data[TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT] = len(all_bolus) if all_bolus else UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL] = round(bolus_total, 2)
+        data[TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT] = len(all_bolus)
 
         # Daily basal total: estimate from basal delivery events
         # Each basal_delivery event gives commanded_rate in U/hr.
@@ -1773,12 +1778,9 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_TOTAL_DAILY_INSULIN] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_BASAL_BOLUS_SPLIT] = UNAVAILABLE
 
-        # Daily carbs
-        if carbs_entered:
-            total_carbs = sum(c.get("carbs", 0) for c in carbs_entered)
-            data[TANDEM_SENSOR_KEY_DAILY_CARBS] = total_carbs
-        else:
-            data[TANDEM_SENSOR_KEY_DAILY_CARBS] = UNAVAILABLE
+        # Daily carbs — sum over today's carb entries; zero logged = 0 g (genuine),
+        # not UNAVAILABLE (same discrete-accumulator rationale as bolus totals above).
+        data[TANDEM_SENSOR_KEY_DAILY_CARBS] = sum(c.get("carbs", 0) for c in carbs_entered)
 
         _LOGGER.debug(
             "Insulin summary: TDI=%.2f U, bolus=%.2f U (%d), basal=%.2f U, split=%.1f%%, carbs=%s g",

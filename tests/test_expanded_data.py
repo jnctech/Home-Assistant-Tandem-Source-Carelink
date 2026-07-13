@@ -768,8 +768,9 @@ class TestComputedInsulinSummary:
 
         assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_CARBS] == 95  # 30+45+20
 
-    async def test_no_bolus_events_unavailable(self, hass: HomeAssistant):
-        """Bolus sensors unavailable when no bolus events."""
+    async def test_no_bolus_events_reports_zero(self, hass: HomeAssistant):
+        """Daily bolus total/count report 0 (not unavailable) when no boluses today —
+        a discrete accumulator over an empty set on a successful fetch is a genuine 0."""
         events = [
             _make_cgm_event(1, 120),
             _make_basal_delivery(2, rate=0.8),
@@ -777,15 +778,16 @@ class TestComputedInsulinSummary:
         data = _make_pump_events_data(events)
         coordinator = await _setup_coordinator(hass, data)
 
-        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_BOLUS_TOTAL] == 0.0
+        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT] == 0
 
-    async def test_no_carbs_unavailable(self, hass: HomeAssistant):
+    async def test_no_carbs_reports_zero(self, hass: HomeAssistant):
+        """Daily carbs reports 0 g (not unavailable) when none logged today."""
         events = [_make_cgm_event(1, 120)]
         data = _make_pump_events_data(events)
         coordinator = await _setup_coordinator(hass, data)
 
-        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_CARBS] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_DAILY_CARBS] == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════
