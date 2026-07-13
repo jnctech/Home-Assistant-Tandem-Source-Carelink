@@ -7,7 +7,8 @@ Significant changes to this repository, listed in reverse chronological order.
 ## CR-260713-daily-accumulator-zero — Daily carb/bolus totals report 0 (not "unknown") when none today
 **Date:** 2026-07-13
 **Branch:** `feature/iss-260523-v2-domain-rename`
-**Status:** Implemented + remote tests 381 pass (not yet deployed live)
+**Status:** Implemented + remote tests 381 pass + **deployed to live HA** (clean restart, no errors;
+zero-behavior manifests at next midnight rollover — all daily sensors had activity at deploy time)
 
 ### What changed
 | Area | Change |
