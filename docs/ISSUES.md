@@ -7,38 +7,31 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ## In-flight (read first at session start)
 
-**v2 LIVE-VALIDATED + rc.2 released + PR #70 MERGED to develop (2026-07-13).** Live setup on the real
-pump surfaced an auth regression: the `inject-websession` change (CR-260710) used HA's injected httpx
-client, which defaults `follow_redirects=False`, so the OAuth authorize→code 302 was never followed →
-`No authorization code in redirect URL` → `invalid_auth`. **Fixed** (`follow_redirects=True` on the
-authorize GET) + config-flow translations (`[%key:common::…]` → literal strings) + regression test —
-`de41377`, **CR-260713-oauth-redirect-authfix**. Remote tests **377 pass**. Published pre-release
-**`v2.0.0-rc.2`** (https://github.com/jnctech/ha-tandem-pump/releases/tag/v2.0.0-rc.2, off `3db9299`).
-**PR #70 MERGED to develop** (admin-merge `6eb7477`; the SonarCloud *required* check bypassed per operator
-exception — 8/9 required checks green). develop now ships `domain=tandem` + `custom_components/tandem/`
-(carelink folder gone) + the auth fix → **HACS folder-misplacement permanently fixed**. Mila's live HA runs
-a MANUAL install of the fixed code (== rc.2, via SSH `homeassistant`), not HACS-tracked. Feature branch NOT deleted.
+**"Unknown sensors" review → bolus-calc surfacing fixes, deployed live (2026-07-13).** Operator asked why
+several sensors read "unknown". Investigation proved most were genuine event-gating, but the bolus-calc
+family was a **surfacing gap** (data present — already feeds LTS — but hidden by a BG-gated wizard join).
+Shipped on branch `feature/iss-260523-v2-domain-rename` (pushed, HEAD `456eb90`), **deployed to live HA
+(manual install, `/config/custom_components/tandem/`) + validated, clean logs:**
+- **CR-260713-bolus-calc-surfacing** (`82d0f48`): `last_bolus_correction` ← event 280 `correction_mu`
+  (every bolus); removed the BG-gate so carb-only boluses surface carbs/food; dropped a raw-glucose value
+  from an INFO log line (PII). Remote **381 pass**.
+- **CR-260713-daily-accumulator-zero** (`8c37f4e`): `daily_carbs`/`daily_bolus_total`/`_count` report **0**
+  (not "unknown") when none logged today; basal/TDI left unavailable-when-empty (continuous ≠ zero).
+- Live cross-check vs pump ground truth (12 g meal bolus): `daily_carbs`=12 ✓ (carb decode validated).
 
-**Next session prompt:** (1) Confirm **SONAR_TOKEN rotated** (operator, ~2026-07-14 → ISS-004) so develop
-CI goes fully green. (2) When satisfied with rc.2, **promote to final `v2.0.0`** — tag off develop HEAD
-(`6eb7477`+) and create the GitHub release (release.yml builds `tandem-2.0.0.zip` + SBOM). (3) Resume P4
-**ISS-260712-reconfigure-platinum** (bronze→platinum flip). Optional: **ISS-260713-orphan-carelink-statistics**
-(HA recorder cleanup), **ENH-260713-battery-shelfmode-unknown** (cosmetic). Remaining env non-blockers:
-ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+**Next session prompt (resume tomorrow, 2026-07-14+):** operator away on business; pump was offsite.
+(1) **ISS-260713-event280-offset-verify** — the load-bearing open item: notes vs code disagree on event-280
+`correction_mu` offset; the deployed correction value + option-A food-portion depend on it. Need a t:connect
+cross-check of the **correction** portion for a **meal bolus where food ≠ correction** (a correction-only
+bolus can't distinguish; carb decode already validated). (2) Decide **ENH-260713-last-bolus-vs-meal-bolus**
+(should `last_bolus_*` skip Control-IQ auto-corrections and track the last *meal* bolus?). (3) **ISS-260713-msg3-total-bolus-garbage**
+(fix the `total_bolus_size` decode). (4) Optional per operator: **option A food-portion** (once offset
+confirmed), interim-revert of the correction source if zero-risk wanted meanwhile. Standing/unchanged:
+**promote to final `v2.0.0`** once **SONAR_TOKEN rotated** (ISS-004); then P4 **ISS-260712-reconfigure-platinum**.
 
-**rc.2 live-validation (2026-07-13):** `/validate-live-tandem` re-run — **PASS**, safety invariants
-intact, Dexcom cross-check within tolerance. Internal report: `docs/internal/validate-live-tandem-2026-07-13-rc2.md`.
-
-**Bolus-calc surfacing fix (2026-07-13, CR-260713-bolus-calc-surfacing):** user found the source website
-shows bolus correction/carbs that HA read "unknown". Root cause = surfacing gap, not missing data (LTS
-already imports them). Fixed: `last_bolus_correction` ← event 280 `correction_mu` (every bolus); removed
-the BG-gate so carb-only boluses surface carbs/food; removed a raw-glucose value from an INFO log line.
-Remote **381 pass**; **deployed to live HA + validated** (correction/food now populate). **Deferred:**
-food-portion + carbs for *non-wizard* boluses (option A drafted). **BLOCKED next step →
-ISS-260713-event280-offset-verify:** notes vs code disagree on event-280 `correction_mu`/`delivered_total_mu`
-byte offsets; the deployed correction fix + option A both depend on it. Operator to verify
-`last_bolus_correction` vs t:connect when pump is on-site (currently offsite). `bolus_type`: 9=correction-only,
-25=food+correction (bit4=food); extended boluses = separate event 21, not a bolus_type value.
+**rc.2 live-validation (2026-07-13):** `/validate-live-tandem` re-run — **PASS**, safety invariants intact,
+Dexcom cross-check within tolerance. Internal report: `docs/internal/validate-live-tandem-2026-07-13-rc2.md`.
+Context: v2 (`domain=tandem`) live == rc.2 + this session's fixes; PR #70 merged to develop; feature branch not deleted.
 
 ---
 
@@ -96,8 +89,15 @@ deferred food-portion derivation (option A: `food = delivered_total − correcti
 offsets. Cannot be resolved by inspection — the golden fixture is circular (decoded by the same code)
 and plausible-looking LTS values are not proof. **Offset-sensitive binary field = silent-decode risk.**
 
-**Verification (operator, when pump on-site):** on the t:connect / Tandem Source dashboard, read the
-**correction amount** of the most recent bolus and compare to `sensor.tandem_last_bolus_correction`.
+**Progress 2026-07-13 (partial):** operator gave ground truth "last meal bolus 12 g @ 13:38". `daily_carbs`
+read **12 exactly → carb decode (event 48) VALIDATED.** But the correction offset is still unresolved: the
+most-recent bolus HA saw was a **correction-only** 0.2 U bolus (correction == total), which cannot
+distinguish a right vs wrong `correction_mu` offset. **Still need a bolus where food ≠ correction.**
+
+**Verification (operator, when pump on-site):** for a recent **meal bolus with a correction portion**
+(food ≠ correction), read the **correction amount** on the t:connect / Tandem Source dashboard and compare
+to `sensor.tandem_last_bolus_correction` — noting HA's "last bolus" may be a later Control-IQ correction
+([[ENH-260713-last-bolus-vs-meal-bolus]]), so match the *bolus_id*/time, not just "the latest".
 - Match → code offset 8 confirmed → proceed with option A (guard extended boluses via event 21).
 - Mismatch → fix the decode offset first; the deployed correction value is wrong and must be corrected.
 Cross-check aid: for a *wizard* bolus, event 66 `correction_bolus_size` (float) is an independent decode
@@ -106,6 +106,37 @@ of the same correction — it should equal event 280 `correction_mu / 1000`.
 **Interim risk:** `last_bolus_correction` may currently show a wrong (historical, informational) value
 instead of the prior "unknown". Low risk (not a live decision-input). Revert-the-source option available
 if zero-risk preferred (keeps the safe BG-gate/carbs/food surfacing, which uses a different decode).
+
+### ISS-260713-msg3-total-bolus-garbage — Bolus-calc `total_bolus_size` decodes to garbage
+**Type:** Correctness / binary decode
+**Priority:** Medium (attribute-only; signals decode fragility)
+**Created:** 2026-07-13
+**Status:** 🟡 Open
+**Source:** Live cross-check 2026-07-13 — `sensor.tandem_last_bolus_bg` attr `total_bolus` = `7.4e26`.
+
+Event 66 (`BolusRequestedMsg3`) `total_bolus_size` is decoded as `>f` at **offset 10**
+(`tandem_api.py:464`) and returns a garbage float (~7.4e26) on live data — misaligned or reading past
+a short payload (food@2 + correction@6 fit; total@10 needs ≥14 bytes). `food_bolus_size`@2 and
+`correction_bolus_size`@6 decode fine. Surfaces only in the `BOLUS_CALC_ATTRS` dict (not a primary
+sensor), so low blast radius, but it is concrete evidence of the binary-decode fragility flagged in
+[[ISS-260713-event280-offset-verify]]. Fix: verify the true offset/length of `total_bolus_size` against
+a raw capture (and guard NaN/inf so garbage never reaches an attribute).
+
+### ENH-260713-last-bolus-vs-meal-bolus — "Last bolus" sensors track any bolus incl. Control-IQ corrections
+**Type:** Enhancement / UX (behaviour design)
+**Priority:** Medium
+**Created:** 2026-07-13
+**Status:** 🟡 Open — needs operator decision
+**Source:** Live cross-check 2026-07-13 — pump last *meal* bolus was 12 g @ 13:38, but HA `last_bolus_*`
+showed a later ~14:46 **0.2 U correction-only** bolus (likely a Control-IQ auto-correction).
+
+The `last_bolus_bg / carbs_entered / correction / food_portion` sensors reflect the **most recent bolus
+of any kind**. Control-IQ fires frequent small carb-less correction boluses, so those will usually *be*
+the most recent — meaning `last_bolus_carbs`/`bg` read blank even right after a meal bolus. `daily_carbs`
+is unaffected (correctly summed 12 g). **Decision needed:** should the "last bolus" family track the last
+**meal/user bolus** (one carrying carbs, or excluding CIQ auto-corrections via `bolus_type`) instead of
+the last any-bolus? Small, safe change if so. Depends on distinguishing CIQ-correction vs user bolus in
+the event data (bolus_type bitmask — see [[ISS-260713-event280-offset-verify]] for the enum).
 
 ### ENH-260713-battery-shelfmode-unknown — Battery voltage/remaining permanently "unknown" on worn pump
 **Type:** Enhancement / UX
