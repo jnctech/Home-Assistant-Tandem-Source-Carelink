@@ -34,8 +34,11 @@ shows bolus correction/carbs that HA read "unknown". Root cause = surfacing gap,
 already imports them). Fixed: `last_bolus_correction` ← event 280 `correction_mu` (every bolus); removed
 the BG-gate so carb-only boluses surface carbs/food; removed a raw-glucose value from an INFO log line.
 Remote **381 pass**; **deployed to live HA + validated** (correction/food now populate). **Deferred:**
-food-portion + carbs for *non-wizard* boluses (needs `bolus_type` enum check — proposal drafted, awaiting
-option A/B/C decision).
+food-portion + carbs for *non-wizard* boluses (option A drafted). **BLOCKED next step →
+ISS-260713-event280-offset-verify:** notes vs code disagree on event-280 `correction_mu`/`delivered_total_mu`
+byte offsets; the deployed correction fix + option A both depend on it. Operator to verify
+`last_bolus_correction` vs t:connect when pump is on-site (currently offsite). `bolus_type`: 9=correction-only,
+25=food+correction (bit4=food); extended boluses = separate event 21, not a bolus_type value.
 
 ---
 
@@ -72,6 +75,37 @@ uninstalled). On v2 startup HA logged collisions (`Cannot rename statistic_id �
 `Cannot migrate history for entity_id …`). Harmless — v2 produces clean `sensor.tandem_*` entities —
 but the stale long-term stats linger. Fix: HA → Developer Tools → Statistics → resolve the flagged
 "issues" (fix/remove the orphaned ids), or script via the recorder. No code impact.
+
+### ISS-260713-event280-offset-verify — Verify event-280 correction_mu / delivered_total_mu byte offsets
+**Type:** Correctness / binary decode (medical field)
+**Priority:** High (gates food-portion work; validates a deployed change)
+**Created:** 2026-07-13
+**Status:** 🟡 Open — BLOCKED on pump availability (offsite); operator to verify vs t:connect
+**Source:** CR-260713-bolus-calc-surfacing follow-up; `/validate-live-tandem` offset-sensitivity rule
+
+The reverse-eng notes (`docs/internal/tandem-source-api-binary-events.md:59-65`) and the live decoder
+(`tandem_api.py:172-180`) **disagree** on event-280 offsets:
+
+| Field | Notes | Code |
+|-------|-------|------|
+| `correction_mu` | offset 6 | offset **8** |
+| `delivered_total_mu` | offset 8 | offset **12** |
+
+The deployed `last_bolus_correction` fix (CR-260713) reads `correction_mu` at **offset 8**, and the
+deferred food-portion derivation (option A: `food = delivered_total − correction`) depends on BOTH
+offsets. Cannot be resolved by inspection — the golden fixture is circular (decoded by the same code)
+and plausible-looking LTS values are not proof. **Offset-sensitive binary field = silent-decode risk.**
+
+**Verification (operator, when pump on-site):** on the t:connect / Tandem Source dashboard, read the
+**correction amount** of the most recent bolus and compare to `sensor.tandem_last_bolus_correction`.
+- Match → code offset 8 confirmed → proceed with option A (guard extended boluses via event 21).
+- Mismatch → fix the decode offset first; the deployed correction value is wrong and must be corrected.
+Cross-check aid: for a *wizard* bolus, event 66 `correction_bolus_size` (float) is an independent decode
+of the same correction — it should equal event 280 `correction_mu / 1000`.
+
+**Interim risk:** `last_bolus_correction` may currently show a wrong (historical, informational) value
+instead of the prior "unknown". Low risk (not a live decision-input). Revert-the-source option available
+if zero-risk preferred (keeps the safe BG-gate/carbs/food surfacing, which uses a different decode).
 
 ### ENH-260713-battery-shelfmode-unknown — Battery voltage/remaining permanently "unknown" on worn pump
 **Type:** Enhancement / UX
