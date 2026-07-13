@@ -379,10 +379,12 @@ class TandemCoordinator(DataUpdateCoordinator):
                 age_str = "N/A"
         except Exception:
             age_str = "?"
+        # NB: never log the raw glucose reading (medical PII). Log presence +
+        # freshness only — that is all the diagnostic signal this line needs.
         _LOGGER.info(
-            "[Tandem] Parse done: %d keys | CGM=%s mg/dL @ %s (age=%s) | stale_check=%s",
+            "[Tandem] Parse done: %d keys | CGM=%s @ %s (age=%s) | stale_check=%s",
             len(data),
-            cgm_mgdl if cgm_mgdl is not None else "N/A",
+            "present" if cgm_mgdl is not None else "none",
             cgm_ts.strftime("%H:%M:%S %Z") if cgm_ts and hasattr(cgm_ts, "strftime") else "N/A",
             age_str,
             is_data_stale(data),
@@ -1218,22 +1220,27 @@ class TandemCoordinator(DataUpdateCoordinator):
                             }
                         )
 
-                # Find latest complete record (has msg3 timestamp and msg1 data)
+                # Latest wizard record, anchored on the msg3 completion timestamp.
+                # Do NOT require a BG here: a carb-only bolus (no fingerstick
+                # entered — common when bolusing off CGM) still carries carbs/food
+                # and must surface them. Only last_bolus_bg stays unavailable when
+                # no BG was entered (genuine absence, not a dropped record).
+                # Correction is sourced separately from event 280 below (it is
+                # present on every bolus, not just wizard-with-BG ones).
                 complete = [
-                    (rec["timestamp"], bid, rec)
-                    for bid, rec in bolus_calc.items()
-                    if rec.get("timestamp") and rec.get("bg") is not None
+                    (rec["timestamp"], bid, rec) for bid, rec in bolus_calc.items() if rec.get("timestamp") is not None
                 ]
                 if complete:
                     complete.sort(key=lambda x: x[0])
                     _, latest_bid, latest = complete[-1]
 
                     bg = latest.get("bg")
-                    if bg is not None and isinstance(bg, (int, float)) and bg > 0:
+                    if isinstance(bg, (int, float)) and bg > 0:
                         data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] = int(bg)
-                    data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] = latest.get("carbs", 0)
-                    data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] = round(float(latest.get("correction_bolus", 0)), 2)
-                    data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] = round(float(latest.get("food_bolus", 0)), 2)
+                    if latest.get("carbs") is not None:
+                        data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] = latest["carbs"]
+                    if latest.get("food_bolus") is not None:
+                        data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] = round(float(latest["food_bolus"]), 2)
                     data[TANDEM_SENSOR_KEY_BOLUS_CALC_ATTRS] = {
                         "bolus_id": latest_bid,
                         "total_bolus": latest.get("total_bolus"),
@@ -1258,6 +1265,28 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_BOLUS_CALC_ATTRS] = {}
+
+        # last_bolus_correction: sourced from the latest COMPLETED bolus delivery
+        # (event 280 correction_mu), NOT the bolus-calculator wizard join. The
+        # correction portion is present on every bolus (wizard or quick) via the
+        # same field that feeds the LTS "correction" statistics, so the sensor now
+        # surfaces whenever a bolus with a correction portion occurs — even when no
+        # wizard record / no BG exists (the reason it previously read "unknown"
+        # despite correction data being present). 0.0 = a bolus with no correction.
+        try:
+            completed_deliveries = [e for e in bolus_delivery if e.get("delivery_status") == 0]
+            if completed_deliveries:
+                latest_bd = max(completed_deliveries, key=lambda e: e["timestamp"])
+                corr_mu = latest_bd.get("correction_mu")
+                if corr_mu is not None:
+                    data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] = round(corr_mu / 1000.0, 2)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.error(
+                "Tandem: Error deriving last bolus correction from event 280: %s",
+                e,
+                exc_info=True,
+            )
+            data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] = UNAVAILABLE
 
         # ── PLGS Predicted Glucose (Phase 5) ───────────────────────────
         try:

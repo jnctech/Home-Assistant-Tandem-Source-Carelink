@@ -4,6 +4,41 @@ Significant changes to this repository, listed in reverse chronological order.
 
 ---
 
+## CR-260713-bolus-calc-surfacing — Surface bolus correction/food that the source has but sensors hid
+**Date:** 2026-07-13
+**Branch:** `feature/iss-260523-v2-domain-rename`
+**Status:** Implemented + remote tests 381 pass + deployed to live HA & validated
+
+### What changed
+| Area | Change |
+|------|--------|
+| `coordinator.py` (bolus-calc join) | Removed the **BG-gate**: the 3-way wizard join accepted a record as "complete" only if `bg is not None` (`:1225`), so a **carb-only bolus** (carbs entered, no fingerstick BG — the norm when bolusing off CGM) was dropped entirely, hiding its carbs+food. Records now anchor on the msg3 completion timestamp; `last_bolus_bg` alone stays unavailable when no BG was entered (genuine absence). |
+| `coordinator.py` (correction source) | `last_bolus_correction` now sourced from the latest **completed** bolus delivery (event 280 `correction_mu`), NOT the wizard join. This is the same field that already feeds the LTS "correction" statistics, so correction surfaces on **every** bolus (quick or wizard), not just wizard-with-BG. `0.00` = a bolus with no correction. |
+| `coordinator.py` (PII in logs) | The INFO "Parse done" line logged a **raw glucose value** (`CGM=<NNN> mg/dL`) every poll. Now logs `CGM=present/none` + freshness age only — medical reading no longer written to the HA log. |
+| `tests/test_expanded_data.py` | Added `_make_bolus_delivery` (event 280) helper; updated 3 tests (correction now from 280; msg3-only surfaces food; stale bg=0 comment); added 5 tests (carb-only-no-BG surfaces carbs/food, correction-from-280-without-wizard, latest-delivery-wins, incomplete-delivery-ignored). |
+
+### Why (root cause)
+User observed the Tandem Source / t:connect website shows bolus correction/carbs that HA read as "unknown".
+Investigation (live event-count log + LTS import counts: correction=84, carb=16, bolus=96 in-window)
+proved the data **is** in the API — it already feeds long-term statistics — but the live "last_*" sensors
+were sourced only from the BG-gated wizard join. This is a surfacing/derivation gap, not missing data.
+
+### Verification
+| Gate | Result |
+|------|--------|
+| Remote pytest (docker 3.13) | ✅ **381 passed** (+5 new), 140 snapshots unchanged |
+| Golden snapshot | ✅ unchanged (fixture's only event-280 is `delivery_status=1`, no wizard events → correctly still "unknown") |
+| Live deploy (scp `coordinator.py` + `ha core restart`, backup `.bak-20260713-preboluscalc`) | ✅ `last_bolus_correction`→value, `last_bolus_food_portion`→value, PII log now `CGM=present`, no errors |
+
+### Follow-ups (not in this change)
+Food-portion + carbs for **non-wizard** (quick) boluses — needs `food = delivered_total − correction`
+(event 280) with an extended/bolex caveat; deferred pending a `bolus_type` enum check (proposal drafted,
+awaiting decision). `daily_carbs` left as-is (event 48 works; "unknown" = no standalone carb entry that day).
+`last_bolus_bg`, `predicted_glucose`, `suspend_reason`, battery voltage/remaining remain genuine
+condition-gating (ENH-260713 for the battery pair).
+
+---
+
 ## CR-260713-oauth-redirect-authfix — Fix v2 live auth (OAuth redirect not followed) + config-flow translations
 **Date:** 2026-07-13
 **Branch:** `feature/iss-260523-v2-domain-rename`

@@ -108,6 +108,31 @@ def _make_bolus_completed(seq: int, delivered: float, iob: float, minutes_ago: i
     }
 
 
+def _make_bolus_delivery(
+    seq: int,
+    correction_mu: int,
+    delivery_status: int = 0,
+    delivered_total_mu: int = 0,
+    minutes_ago: int = 0,
+) -> dict:
+    """Mock EVT_BOLUS_DELIVERY (event 280) — carries correction_mu on every bolus.
+
+    This is the source for ``last_bolus_correction`` (not the wizard join), so the
+    correction sensor surfaces for quick boluses and carb-only wizard boluses too.
+    """
+    ts = BASE_TS - timedelta(minutes=minutes_ago)
+    return {
+        "event_id": 280,
+        "event_name": "BolusDelivery",
+        "seq": seq,
+        "timestamp": ts,
+        "bolus_id": 100 + seq,
+        "delivery_status": delivery_status,
+        "correction_mu": correction_mu,
+        "delivered_total_mu": delivered_total_mu,
+    }
+
+
 def _make_basal_delivery(seq: int, rate: float, source: int = 1, minutes_ago: int = 0) -> dict:
     ts = BASE_TS - timedelta(minutes=minutes_ago)
     return {
@@ -1792,11 +1817,14 @@ class TestBolusCalcCoordinator:
     """Test coordinator 3-way join and sensor population for bolus calculator."""
 
     async def test_complete_bolus_calc_record(self, hass: HomeAssistant):
-        """All 3 messages join correctly and populate sensors."""
+        """All 3 wizard messages join for bg/carbs/food; correction comes from event 280."""
         events = [
             _make_bolus_req_msg1(1, 42, bg=180, iob=2.5, carbs=45, carb_ratio=10.0),
             _make_bolus_req_msg2(2, 42, target_bg=110, isf=50),
             _make_bolus_req_msg3(3, 42, food=4.5, correction=1.4, total=5.9),
+            # Correction is now sourced from the bolus delivery (event 280), not the
+            # wizard join — 1400 mU = 1.4 U.
+            _make_bolus_delivery(4, correction_mu=1400),
         ]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] == 180
@@ -1828,14 +1856,17 @@ class TestBolusCalcCoordinator:
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] == 60
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] == 6.0
 
-    async def test_msg3_only_no_msg1_still_populates_partial(self, hass: HomeAssistant):
-        """msg3 without matching msg1 → bg is None so record is incomplete, sensors stay UNAVAILABLE."""
+    async def test_msg3_only_no_msg1_still_populates_food(self, hass: HomeAssistant):
+        """msg3 without msg1 → food surfaces (record anchored on msg3 timestamp);
+        bg and carbs stay UNAVAILABLE because there is no msg1 to supply them."""
         events = [
             _make_bolus_req_msg3(1, 99, food=2.0, correction=0.0, total=2.0),
         ]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
-        # No msg1 → bg is None → not "complete" → sensors stay at default
+        # No msg1 → no bg, no carbs; but msg3 food is surfaced (BG-gate removed).
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] == 2.0
 
     async def test_no_bolus_calc_events(self, hass: HomeAssistant):
         """No events 64/65/66 → all bolus calc sensors are UNAVAILABLE."""
@@ -1854,12 +1885,52 @@ class TestBolusCalcCoordinator:
             _make_bolus_req_msg3(2, 50, food=2.0, correction=0.0, total=2.0),
         ]
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
-        # bg=0 is treated as "not entered" → passes completeness check (bg is not None,
-        # it's 0) but BG sensor stays UNAVAILABLE because bg <= 0
+        # bg=0 means "not entered" → BG sensor stays UNAVAILABLE (bg <= 0),
+        # but carbs/food still surface (BG is not required to surface a record).
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] is UNAVAILABLE
-        # But carbs/food/correction should still populate
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] == 20
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] == 2.0
+
+    async def test_carb_only_bolus_no_bg_field_surfaces_carbs_food(self, hass: HomeAssistant):
+        """A carb-only wizard bolus with NO bg field at all (bolusing off CGM) still
+        surfaces carbs/food — the live case that previously read 'unknown'."""
+        events = [
+            _make_bolus_req_msg1(1, 70, bg=None, iob=1.0, carbs=35),  # no fingerstick BG
+            _make_bolus_req_msg3(2, 70, food=3.5, correction=0.0, total=3.5),
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] == 35
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_FOOD] == 3.5
+
+    async def test_correction_from_event_280_without_wizard(self, hass: HomeAssistant):
+        """last_bolus_correction is sourced from event 280 correction_mu even with no
+        bolus-calculator (wizard) events at all — a quick bolus with a correction."""
+        events = [
+            _make_bolus_delivery(1, correction_mu=850),  # 0.85 U correction
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] == 0.85
+        # No wizard events → bg/carbs/food remain unavailable.
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] is UNAVAILABLE
+
+    async def test_correction_latest_delivery_wins(self, hass: HomeAssistant):
+        """With multiple bolus deliveries, the most recent correction_mu is used."""
+        events = [
+            _make_bolus_delivery(1, correction_mu=2000, minutes_ago=30),  # older
+            _make_bolus_delivery(2, correction_mu=500, minutes_ago=5),  # newer
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] == 0.5
+
+    async def test_correction_ignores_incomplete_delivery(self, hass: HomeAssistant):
+        """Only completed deliveries (delivery_status=0) feed the correction sensor."""
+        events = [
+            _make_bolus_delivery(1, correction_mu=900, delivery_status=1),  # started, not done
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] is UNAVAILABLE
 
     async def test_zero_bg_shadows_older_valid_bg(self, hass: HomeAssistant):
         """Newer bolus with bg=0 shadows older bolus with valid BG.

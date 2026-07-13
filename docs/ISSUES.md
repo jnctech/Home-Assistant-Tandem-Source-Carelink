@@ -23,7 +23,19 @@ a MANUAL install of the fixed code (== rc.2, via SSH `homeassistant`), not HACS-
 CI goes fully green. (2) When satisfied with rc.2, **promote to final `v2.0.0`** — tag off develop HEAD
 (`6eb7477`+) and create the GitHub release (release.yml builds `tandem-2.0.0.zip` + SBOM). (3) Resume P4
 **ISS-260712-reconfigure-platinum** (bronze→platinum flip). Optional: **ISS-260713-orphan-carelink-statistics**
-(HA recorder cleanup). Remaining env non-blockers: ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+(HA recorder cleanup), **ENH-260713-battery-shelfmode-unknown** (cosmetic). Remaining env non-blockers:
+ISS-260712-brands-registration, ISS-260712-conflicts-action-broken.
+
+**rc.2 live-validation (2026-07-13):** `/validate-live-tandem` re-run — **PASS**, safety invariants
+intact, Dexcom cross-check within tolerance. Internal report: `docs/internal/validate-live-tandem-2026-07-13-rc2.md`.
+
+**Bolus-calc surfacing fix (2026-07-13, CR-260713-bolus-calc-surfacing):** user found the source website
+shows bolus correction/carbs that HA read "unknown". Root cause = surfacing gap, not missing data (LTS
+already imports them). Fixed: `last_bolus_correction` ← event 280 `correction_mu` (every bolus); removed
+the BG-gate so carb-only boluses surface carbs/food; removed a raw-glucose value from an INFO log line.
+Remote **381 pass**; **deployed to live HA + validated** (correction/food now populate). **Deferred:**
+food-portion + carbs for *non-wizard* boluses (needs `bolus_type` enum check — proposal drafted, awaiting
+option A/B/C decision).
 
 ---
 
@@ -60,6 +72,21 @@ uninstalled). On v2 startup HA logged collisions (`Cannot rename statistic_id �
 `Cannot migrate history for entity_id …`). Harmless — v2 produces clean `sensor.tandem_*` entities —
 but the stale long-term stats linger. Fix: HA → Developer Tools → Statistics → resolve the flagged
 "issues" (fix/remove the orphaned ids), or script via the recorder. No code impact.
+
+### ENH-260713-battery-shelfmode-unknown — Battery voltage/remaining permanently "unknown" on worn pump
+**Type:** Enhancement / UX
+**Priority:** Low
+**Created:** 2026-07-13
+**Status:** 🟡 Open
+**Source:** `/validate-live-tandem` v2.0.0-rc.2 gate (internal report 2026-07-13)
+
+`sensor.tandem_pump_battery_voltage` (mV) and `sensor.tandem_pump_battery_remaining` (mAh) are
+sourced **only** from ShelfMode events (event 53, `coordinator.py:1102-1108`); DailyBasal (event 81)
+supplies battery **%** only. A pump in normal daily wear rarely/never enters ShelfMode, so both
+sensors read `unknown` indefinitely — not a fault (null-not-guess: no fabricated default), but two
+dashboard entities that never populate for the typical user. `battery_level` (%) is unaffected and
+reports correctly. Options: (a) leave as-is (accurate null), (b) document in TROUBLESHOOTING,
+(c) hide/derive when ShelfMode has never been seen. Behaviour verified correct at rc.2; cosmetic only.
 
 ### ISS-260712-brands-registration — Register `tandem` domain in home-assistant/brands
 **Type:** Distribution / HACS
