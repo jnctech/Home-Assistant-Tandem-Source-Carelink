@@ -7,6 +7,17 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ## In-flight (read first at session start)
 
+**Last session (2026-07-17) — estate mailbox coordination (no product code changed).** Cleared the tandem oob
+inbox and replied what was owed (commits on `~/oob`, unpushed — operator serializes the shared-branch push):
+(a) **step-5b STANDARDS-tandem confirmation → oob** — operator-directed: recorded the **heavyweight governance
+model as the INTENDED TARGET**, lean = current OPERATING state only (do NOT let oob consolidate "lean = canonical");
+(b) **v2-live status ping → homeassistant-config** (post-add verify clear); (c) **PII-gitignore correction →
+config** (their "urgent" `*_diagnostics_*.json`-absent claim is stale — present at `.gitignore:185`); (d) filled
+the oob-advisory pointer-content gaps in `docs/internal/oob-standards-pointer.md` (C2 classification + ratify chain
++ never-self-ratify + C0 gate) → **approval pending from oob**. New ID filed: **ISS-260717-adr-number-collision**
+(ADR-007/008/009 clash across branches — confirmed real). gitea-token maps to existing **ISS-260712-gitea-token-expired**
+(token is DEAD/rejected — cleanup, not a live leak). **Resume priority is UNCHANGED — the product queue below.**
+
 **"Unknown sensors" review → bolus-calc surfacing fixes, deployed live (2026-07-13).** Operator asked why
 several sensors read "unknown". Investigation proved most were genuine event-gating, but the bolus-calc
 family was a **surfacing gap** (data present — already feeds LTS — but hidden by a BG-gated wizard join).
@@ -183,6 +194,19 @@ The `gitea` remote (`gitea.colebungalow.com/jc/ha-tandem-pump`) has an access to
 to the mirror failed, so the gitea mirror is ≥1 commit behind `origin`. The dead plaintext token is
 harmless (not live) but should be cleaned up. Fix: refresh the token or switch the remote to SSH /
 a credential helper (stop storing a plaintext token in the URL), then re-push the branch.
+
+### ISS-260717-adr-number-collision — ADR-007/008/009 defined differently across branches
+**Type:** Docs hygiene / merge risk
+**Priority:** Medium (hard collision if both branches merge)
+**Created:** 2026-07-17
+**Status:** 🟡 Open
+Verified across branches this session: `feature/iss-260523-v2-domain-rename` defines ADR-007=greenfield-v1-tandem-only,
+008=fail-visible-staleness, 009=entity-golden-tests; `feature/iss-012-hacs-compliance` defines the SAME numbers as
+007=entity-unique-id-format, 008=cumulative-insulin-tracking, 009=httpx-async-client. Disjoint decisions under
+identical IDs → hard collision if both merge. Surfaced via config's 07-17 standards-intake forward (§2). **Proposed
+resolution (not executed):** whichever branch merges second renumbers its ADRs to 010/011/012 with redirect stubs.
+Confirmed real to oob in `RELAY-from-tandem-to-oob-standards-intake-step5b-confirmation-2026-07-17.md`; flagged as
+still warranting the `ledger/recover → main` promote_check G2 hold.
 
 ### ISS-012 — HACS Review Findings
 **Type:** Quality / HACS Compliance
