@@ -14,9 +14,11 @@ model as the INTENDED TARGET**, lean = current OPERATING state only (do NOT let 
 (b) **v2-live status ping → homeassistant-config** (post-add verify clear); (c) **PII-gitignore correction →
 config** (their "urgent" `*_diagnostics_*.json`-absent claim is stale — present at `.gitignore:185`); (d) filled
 the oob-advisory pointer-content gaps in `docs/internal/oob-standards-pointer.md` (C2 classification + ratify chain
-+ never-self-ratify + C0 gate) → **approval pending from oob**. New ID filed: **ISS-260717-adr-number-collision**
-(ADR-007/008/009 clash across branches — confirmed real). gitea-token maps to existing **ISS-260712-gitea-token-expired**
-(token is DEAD/rejected — cleanup, not a live leak). **Resume priority is UNCHANGED — the product queue below.**
++ never-self-ratify + C0 gate) → **oob CONFIRMED canon-faithful, item #3 closed**. New ID filed:
+**ISS-260717-adr-number-collision** (ADR-007/008/009 clash across branches — confirmed real). gitea-token maps to
+existing **ISS-260712-gitea-token-expired** (token is DEAD/rejected — cleanup, not a live leak). **Residual operator
+DECISION (low urgency):** whether the already-public pre-`20e7ddc` git history (estate-internal RESUME file, no
+secrets/PII) needs a scrub. **Resume priority is UNCHANGED — the product queue below.**
 
 **"Unknown sensors" review → bolus-calc surfacing fixes, deployed live (2026-07-13).** Operator asked why
 several sensors read "unknown". Investigation proved most were genuine event-gating, but the bolus-calc
