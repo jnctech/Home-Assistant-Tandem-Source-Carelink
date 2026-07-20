@@ -210,6 +210,24 @@ resolution (not executed):** whichever branch merges second renumbers its ADRs t
 Confirmed real to oob in `RELAY-from-tandem-to-oob-standards-intake-step5b-confirmation-2026-07-17.md`; flagged as
 still warranting the `ledger/recover → main` promote_check G2 hold.
 
+### ISS-260720-carelink-naming-residue — Stale `carelink` naming in user-facing service description
+**Type:** Bug / Docs
+**Priority:** Low (user-visible, non-functional)
+**Created:** 2026-07-20
+**Status:** ✅ Resolved 2026-07-20
+Two stale `carelink` references survived the domain rewrite:
+- `services.yaml:29` — the `capture_diagnostics` description shown in **Developer Tools → Actions**
+  told users the snapshot is written to `/config/carelink_diagnostics_<timestamp>.json`. The code
+  actually writes `tandem_diagnostics_<timestamp>.json` (`__init__.py:300`, and the docstring at
+  `__init__.py:203` was already correct) — so users following the UI text looked for a file that
+  never exists. **Real user-facing defect**, not cosmetic.
+- `coordinator.py:2081` — section comment `# Helper functions (Carelink)` (cosmetic).
+Both corrected. Found while investigating an operator report that the setup screen still mentioned
+Medtronic/Nightscout — that specific report was **not** reproducible: `strings.json` and
+`translations/en.json` are Tandem-only (config-flow translations were fixed in v2.0.0-rc.2, see
+CR-260713-oauth-redirect-authfix). The operator was most likely viewing the old `carelink`-domain
+integration still installed in HA. **Unconfirmed — worth a 10-second check at next live session.**
+
 ### ISS-012 — HACS Review Findings
 **Type:** Quality / HACS Compliance
 **Priority:** High

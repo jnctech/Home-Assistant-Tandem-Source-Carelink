@@ -2078,5 +2078,5 @@ class TandemCoordinator(DataUpdateCoordinator):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Helper functions (Carelink)
+# Helper functions
 # ═══════════════════════════════════════════════════════════════════════════
