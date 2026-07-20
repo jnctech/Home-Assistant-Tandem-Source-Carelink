@@ -7,7 +7,25 @@ For quick cross-project tasks, see `~/Code/TODO.md`.
 
 ## In-flight (read first at session start)
 
-**Last session (2026-07-17) — estate mailbox coordination (no product code changed).** Cleared the tandem oob
+**Last session (2026-07-20) — carried git-op cleared + carelink naming residue fixed.**
+(1) ✅ The classifier-blocked git op owed since 2026-07-17 is **DONE** — the In-flight edit (oob pointer
+item #3 CLOSED + residual history-scrub decision) is committed `19bd14c` and pushed.
+(2) ✅ **ISS-260720-carelink-naming-residue** filed + resolved (`d09c81d`): `services.yaml` told users
+`capture_diagnostics` writes `/config/carelink_diagnostics_*.json` but the code writes
+`tandem_diagnostics_*.json` — real user-facing defect; also dropped a stale `(Carelink)` code comment.
+(3) ⚠️ **UNCONFIRMED, needs a 10-second live check:** operator reported the **initial setup screen still
+mentions Medtronic/Nightscout**. Not reproducible in source — `strings.json` + `translations/en.json` are
+Tandem-only (config-flow translations fixed in rc.2). Most likely the operator was viewing the **old
+`carelink`-domain integration still installed in HA**. Confirm at next live session; if it reproduces on
+a clean `tandem` install, it's a real bug — reopen ISS-260720-carelink-naming-residue.
+(4) ⚠️ **Session-state incident:** that session began on a **stale repo snapshot** (in-session `git log`
+showed a HEAD ~8 days behind the real `230e4dd`) and re-did already-shipped rc.1 work before catching it.
+It also **overwrote** `~/Code/handoffs/2026-07-12-ha-tandem-pump-v2-rc-release.md` with a fabricated
+handoff; original unrecoverable (handoffs dir is not version-controlled → logged in `~/Code/TODO.md`).
+That file now carries a correction notice. **Verify HEAD against the session-start snapshot before acting.**
+**Resume priority is UNCHANGED — the product queue below.**
+
+**Prior session (2026-07-17) — estate mailbox coordination (no product code changed).** Cleared the tandem oob
 inbox and replied what was owed (commits on `~/oob`, unpushed — operator serializes the shared-branch push):
 (a) **step-5b STANDARDS-tandem confirmation → oob** — operator-directed: recorded the **heavyweight governance
 model as the INTENDED TARGET**, lean = current OPERATING state only (do NOT let oob consolidate "lean = canonical");
