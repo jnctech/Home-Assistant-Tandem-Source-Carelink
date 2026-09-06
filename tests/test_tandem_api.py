@@ -9,9 +9,15 @@ import httpx
 import pytest
 
 from custom_components.tandem.tandem_api import (
+    EVT_AA_DAILY_STATUS,
+    EVT_BOLUS_REQUESTED_MSG1,
+    EVT_BOLUS_REQUESTED_MSG2,
+    EVT_BOLUS_REQUESTED_MSG3,
+    EVT_DAILY_BASAL,
     TandemSourceClient,
     TandemAuthError,
     TandemApiError,
+    map_pump_log_event,
     parse_dotnet_date,
 )
 
@@ -779,3 +785,134 @@ class TestGetPumperInfo:
         mock_get.assert_called_once()
         call_url = mock_get.call_args[0][0]
         assert "pump-abc" in call_url
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# map_pump_log_event — BFF JSON → legacy decoded-event dict
+# ═══════════════════════════════════════════════════════════════════════════
+class TestMapPumpLogEventBolusCalculator:
+    """Bolus-calculator events 64/65/66 map to the coordinator's join contract."""
+
+    def _event(self, code, props):
+        return {
+            "eventCode": code,
+            "pumpDateTime": "2026-09-06T13:04:00",
+            "sequenceNumber": 7,
+            "eventProperties": props,
+        }
+
+    def test_msg1_bg_carbs_iob(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG1,
+                {
+                    "bolusId": 42,
+                    "bg": 145,
+                    "iob": 1.5,
+                    "carbAmount": 30,
+                    "carbRatio": 8000,
+                    "bolusType": [4],
+                    "correctionBolusIncluded": 1,
+                },
+            )
+        )
+        assert evt is not None
+        assert evt["event_id"] == EVT_BOLUS_REQUESTED_MSG1
+        assert evt["event_name"] == "BolusRequestedMsg1"
+        assert evt["bolus_id"] == 42
+        assert evt["bg_mgdl"] == 145
+        assert evt["iob"] == 1.5
+        assert evt["carb_amount"] == 30
+        assert evt["carb_ratio"] == 8.0  # 8000 fixed-point / 1000
+        assert evt["bolus_type"] == 16  # bitmask [4] → 1<<4
+        assert evt["correction_included"] is True
+        assert evt["timestamp"].tzinfo is None  # naive pump-local
+
+    def test_msg1_missing_fields_are_none(self):
+        evt = map_pump_log_event(self._event(EVT_BOLUS_REQUESTED_MSG1, {"bolusId": 1}))
+        assert evt is not None
+        assert evt["bg_mgdl"] is None
+        assert evt["carb_amount"] is None
+        assert evt["carb_ratio"] is None  # non-numeric carbRatio → None, not a crash
+
+    def test_msg2_targets(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG2,
+                {
+                    "bolusId": 42,
+                    "standardPercent": 100,
+                    "targetBg": 110,
+                    "isf": 45,
+                    "duration": 0,
+                    "declinedCorrection": 0,
+                    "userOverride": 1,
+                },
+            )
+        )
+        assert evt["event_name"] == "BolusRequestedMsg2"
+        assert evt["bolus_id"] == 42
+        assert evt["target_bg"] == 110
+        assert evt["isf"] == 45
+        assert evt["duration_minutes"] == 0
+        assert evt["declined_correction"] is False
+        assert evt["user_override"] is True
+
+    def test_msg3_split_sizes(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG3,
+                {
+                    "bolusId": 42,
+                    "foodBolusSize": 7.63,
+                    "correctionBolusSize": 0.0,
+                    "totalBolusSize": 7.63,
+                },
+            )
+        )
+        assert evt["event_name"] == "BolusRequestedMsg3"
+        assert evt["bolus_id"] == 42
+        assert evt["food_bolus_size"] == 7.63
+        assert evt["correction_bolus_size"] == 0.0
+        assert evt["total_bolus_size"] == 7.63
+
+
+class TestMapPumpLogEventDailyStatus:
+    """AA daily status (313) supplies the CGM sensor type."""
+
+    def _event(self, props):
+        return {
+            "eventCode": EVT_AA_DAILY_STATUS,
+            "pumpDateTime": "2026-09-06T00:00:00",
+            "sequenceNumber": 1,
+            "eventProperties": props,
+        }
+
+    def test_sensor_type_g7(self):
+        evt = map_pump_log_event(self._event({"sensorType": 3, "usermode": 0, "pumpControlState": 2}))
+        assert evt["event_name"] == "AADailyStatus"
+        assert evt["sensor_type_id"] == 3
+        assert evt["sensor_type"] == "G7"
+        assert evt["user_mode"] == 0
+        assert evt["pump_control_state"] == 2
+
+    def test_sensor_type_unknown_code(self):
+        evt = map_pump_log_event(self._event({"sensorType": 9}))
+        assert evt["sensor_type"] == "Unknown (9)"
+
+
+class TestMapPumpLogEventBoundaries:
+    """Events still unmapped return None; malformed input returns None."""
+
+    def test_unmapped_event_returns_none(self):
+        # Daily basal (81) is deliberately not yet mapped (battery follow-up).
+        evt = map_pump_log_event(
+            {"eventCode": EVT_DAILY_BASAL, "pumpDateTime": "2026-09-06T00:00:00", "eventProperties": {}}
+        )
+        assert evt is None
+
+    def test_missing_datetime_returns_none(self):
+        assert map_pump_log_event({"eventCode": EVT_BOLUS_REQUESTED_MSG1, "eventProperties": {}}) is None
+
+    def test_missing_event_code_returns_none(self):
+        assert map_pump_log_event({"pumpDateTime": "2026-09-06T00:00:00"}) is None
