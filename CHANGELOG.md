@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.0.0] - 2026-09-06
+
+First stable release of the Tandem-only v2 rewrite. Restores full sensor data after
+Tandem migrated the Source Reports API to new endpoints, which had left the integration
+reporting "all sensors unknown".
+
+### Fixed
+- **All sensors "unknown" / "Failed to fetch pump metadata"** (#71, #69) — Tandem migrated the
+  Source Reports API from the `reportsfacade` paths to new `bff` endpoints (~June 2026); the old
+  paths now return 403/404. The client was migrated to the BFF endpoints, including the
+  `Origin`/`Referer` headers the BFF's WAF requires. Both EU and US accounts are restored.
+- **Pump settings sensors "unknown"** — the BFF renamed the `settings.details` sub-blocks, so the
+  ten settings sensors (Control-IQ enabled/weight/TDI, max bolus, basal rate limit, CGM high/low
+  alert, high/low BG threshold, low-insulin alert) stopped populating. All remapped to the new schema.
+- **Bolus detail and CGM sensor type "unknown"** — mapped the BFF bolus-calculator and daily-status
+  events, restoring last-bolus BG / carbs / correction / food-portion and the CGM sensor-type sensor.
+- **Multiple-pump accounts showed a retired pump's data** (#65) — the integration now selects the
+  most-recently-active pump instead of an arbitrary one.
+
+### Changed
+- **Long-term statistics** now pass `mean_type` (`StatisticMeanType.ARITHMETIC`) for forward
+  compatibility with the Home Assistant 2026.11 recorder change (#22).
+
+### Known limitations
+- Pump battery, alert/alarm history, and USB-charging sensors remain unavailable pending BFF event
+  mapping (they report `unavailable` rather than a fabricated value).
+
 ## [2.0.0-rc.2] - 2026-07-13
 
 ### Fixed
