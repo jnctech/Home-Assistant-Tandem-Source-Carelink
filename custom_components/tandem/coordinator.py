@@ -33,6 +33,8 @@ from .tandem_api import (
     EVT_ALERT_CLEARED,
     EVT_BASAL_DELIVERY,
     EVT_BASAL_RATE_CHANGE,
+    EVT_BATTERY_1,
+    EVT_BATTERY_2,
     EVT_BG_READING_TAKEN,
     EVT_BOLEX_COMPLETED,
     EVT_BOLUS_COMPLETED,
@@ -53,9 +55,8 @@ from .tandem_api import (
     EVT_PUMPING_RESUMED,
     EVT_PUMPING_SUSPENDED,
     EVT_SHELF_MODE,
+    EVT_STATUS,
     EVT_TUBING_FILLED,
-    EVT_USB_CONNECTED,
-    EVT_USB_DISCONNECTED,
     TandemSourceClient,
     parse_dotnet_date,
 )
@@ -80,8 +81,6 @@ from .const import (
     TANDEM_SENSOR_KEY_BASAL_LIMIT,
     TANDEM_SENSOR_KEY_BASAL_RATE,
     TANDEM_SENSOR_KEY_BATTERY_PERCENT,
-    TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
-    TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
     TANDEM_SENSOR_KEY_BOLUS_CALC_ATTRS,
     TANDEM_SENSOR_KEY_CARTRIDGE_INSULIN,
     TANDEM_SENSOR_KEY_CGM_HIGH_ALERT,
@@ -90,7 +89,6 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
-    TANDEM_SENSOR_KEY_CHARGING_STATUS,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
@@ -407,9 +405,6 @@ class TandemCoordinator(DataUpdateCoordinator):
         data[TANDEM_SENSOR_KEY_LAST_CARTRIDGE_FILL] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] = UNAVAILABLE
-        data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] = UNAVAILABLE
-        data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] = UNAVAILABLE
-        data[TANDEM_SENSOR_KEY_CHARGING_STATUS] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_ALERT] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_ALARM] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = UNAVAILABLE
@@ -628,7 +623,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         pcm_changes: list[dict[str, Any]] = []
         daily_basal_events: list[dict[str, Any]] = []
         shelf_mode_events: list[dict[str, Any]] = []
-        usb_events: list[dict[str, Any]] = []
+        battery_status_events: list[dict[str, Any]] = []
         alert_events: list[dict[str, Any]] = []
         alarm_events: list[dict[str, Any]] = []
         daily_status_events: list[dict[str, Any]] = []
@@ -672,8 +667,8 @@ class TandemCoordinator(DataUpdateCoordinator):
                 daily_basal_events.append(evt)
             elif eid == EVT_SHELF_MODE:
                 shelf_mode_events.append(evt)
-            elif eid in (EVT_USB_CONNECTED, EVT_USB_DISCONNECTED):
-                usb_events.append(evt)
+            elif eid in (EVT_STATUS, EVT_BATTERY_1, EVT_BATTERY_2):
+                battery_status_events.append(evt)
             elif eid in (EVT_ALERT_ACTIVATED, EVT_ALERT_CLEARED):
                 alert_events.append(evt)
             elif eid in (EVT_ALARM_ACTIVATED, EVT_MALFUNCTION_ACTIVATED, EVT_ALARM_CLEARED):
@@ -696,7 +691,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             "BolusDelivery: %d, BasalChange: %d, BasalDelivery: %d, "
             "Suspend/Resume: %d, BG: %d, Cartridge: %d, Carbs: %d, "
             "Cannula: %d, Tubing: %d, UserMode: %d, PCM: %d, "
-            "DailyBasal: %d, ShelfMode: %d, USB: %d, "
+            "DailyBasal: %d, ShelfMode: %d, "
             "Alert: %d, Alarm: %d, DailyStatus: %d, "
             "BolusReqMsg1: %d, BolusReqMsg2: %d, BolusReqMsg3: %d, "
             "PLGS: %d, NewDay: %d",
@@ -716,7 +711,6 @@ class TandemCoordinator(DataUpdateCoordinator):
             len(pcm_changes),
             len(daily_basal_events),
             len(shelf_mode_events),
-            len(usb_events),
             len(alert_events),
             len(alarm_events),
             len(daily_status_events),
@@ -750,7 +744,6 @@ class TandemCoordinator(DataUpdateCoordinator):
         pcm_changes.sort(key=lambda e: e["timestamp"])
         daily_basal_events.sort(key=lambda e: e["timestamp"])
         shelf_mode_events.sort(key=lambda e: e["timestamp"])
-        usb_events.sort(key=lambda e: e["timestamp"])
         alert_events.sort(key=lambda e: e["timestamp"])
         alarm_events.sort(key=lambda e: e["timestamp"])
         daily_status_events.sort(key=lambda e: e["timestamp"])
@@ -1083,53 +1076,36 @@ class TandemCoordinator(DataUpdateCoordinator):
         else:
             data[TANDEM_SENSOR_KEY_LAST_TUBING_CHANGE] = UNAVAILABLE
 
-        # ── Battery monitoring (Phase 1) ─────────────────────────────────
-        # Battery data comes from two event types:
-        # - Event 81 (DailyBasal): battery % only (emitted daily)
-        # - Event 53 (ShelfMode): battery %, voltage, mAh, current (periodic)
-        # We prefer the most recent of either source for %,
-        # and only ShelfMode provides voltage and mAh.
+        # ── Battery level ─────────────────────────────────────────────────
+        # The pump's on-screen battery percentage, from the BFF pump-status /
+        # battery-detail events (9 / 34 / 35). Their `abc` (actual battery charge)
+        # field is the display percentage — validated 2026-09-06 against the physical
+        # charge ratio remainingChargeCapacity/fullChargeCapacity. The pre-BFF
+        # sources (DailyBasal 81 / ShelfMode 53) carry no battery data under the BFF,
+        # so the level comes solely from 9/34/35. Only the level is surfaced —
+        # voltage/mAh are not consumed.
         try:
             battery_pct = UNAVAILABLE
-            battery_mv = UNAVAILABLE
-            battery_mah = UNAVAILABLE
 
-            # DailyBasal provides battery % (voltage only from ShelfMode)
-            if daily_basal_events:
-                latest_db = daily_basal_events[-1]
-                battery_pct = latest_db.get("battery_percent", UNAVAILABLE)
-
-            # ShelfMode provides voltage and mAh (always used when available)
-            # and battery % (used if newer than DailyBasal)
-            if shelf_mode_events:
-                latest_sm = shelf_mode_events[-1]
-                sm_pct = latest_sm.get("battery_percent", UNAVAILABLE)
-                battery_mv = latest_sm.get("battery_voltage_mv", UNAVAILABLE)
-                battery_mah = latest_sm.get("battery_remaining_mah", UNAVAILABLE)
-
-                # Use ShelfMode % if no DailyBasal or if ShelfMode is newer
-                if not daily_basal_events or latest_sm["timestamp"] > daily_basal_events[-1]["timestamp"]:
-                    battery_pct = sm_pct
+            # Most-recent battery-percent-bearing status/battery event.
+            battery_pct_events = [e for e in battery_status_events if e.get("battery_percent") is not None]
+            if battery_pct_events:
+                latest_batt = max(battery_pct_events, key=lambda e: e["timestamp"])
+                raw_pct = latest_batt.get("battery_percent")
+                # `abc` is a 0-100 integer; guard against an unexpected scale rather
+                # than surfacing a misleading value (null-not-guess).
+                if isinstance(raw_pct, (int, float)) and 0 <= raw_pct <= 100:
+                    battery_pct = round(raw_pct)
+                else:
+                    _LOGGER.warning(
+                        "Tandem: battery_percent out of range (%r) — leaving unavailable",
+                        raw_pct,
+                    )
 
             data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] = battery_pct
-            data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] = battery_mv
-            data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] = battery_mah
-
-            # Charging status from USB connect/disconnect events
-            if usb_events:
-                latest_usb = usb_events[-1]
-                if latest_usb.get("event_name") == "USBConnected":
-                    data[TANDEM_SENSOR_KEY_CHARGING_STATUS] = "Charging"
-                else:
-                    data[TANDEM_SENSOR_KEY_CHARGING_STATUS] = "Not Charging"
-            else:
-                data[TANDEM_SENSOR_KEY_CHARGING_STATUS] = UNAVAILABLE
         except Exception as e:
             _LOGGER.warning("Error parsing battery data: %s", e, exc_info=True)
             data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] = UNAVAILABLE
-            data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] = UNAVAILABLE
-            data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] = UNAVAILABLE
-            data[TANDEM_SENSOR_KEY_CHARGING_STATUS] = UNAVAILABLE
 
         # ── Alerts & Alarms (Phase 2) ─────────────────────────────────
         try:

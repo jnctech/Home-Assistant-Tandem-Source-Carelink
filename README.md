@@ -9,7 +9,7 @@
 > This software is provided as-is with no warranty. See [LICENSE](LICENSE).
 
 The only Home Assistant integration for the **Tandem t:slim X2** insulin pump.
-Get CGM readings, insulin on board, Control-IQ status, and 69 sensors —
+Get CGM readings, insulin on board, Control-IQ status, and 66 sensors —
 using your existing Tandem Source account. No extra hardware required.
 
 [![release](https://img.shields.io/github/v/release/jnctech/ha-tandem-pump)](https://github.com/jnctech/ha-tandem-pump/releases)
@@ -33,13 +33,13 @@ using your existing Tandem Source account. No extra hardware required.
 - Track time-in-range, GMI, and long-term insulin trends over weeks with the Statistics Graph card
 - Know your active basal profile, Control-IQ mode, and IOB — everything your pump reports, visible in your smart home
 
-## 69 sensors across 7 categories
+## 66 sensors across 7 categories
 
 | Category | Sensors | Highlights |
 |---|---|---|
 | Glucose Monitoring | 12 | CGM mg/dL + mmol/L, rate of change, TIR, GMI, SD, CV, predicted glucose (PLGS) |
 | Insulin Delivery | 14 | IOB, basal rate, last bolus, TDI, daily totals, carbs, bolus calculator details, estimated remaining insulin |
-| Pump Battery | 4 | Battery %, voltage (mV), remaining capacity (mAh), charging status |
+| Pump Battery | 1 | Battery level (%) |
 | Alerts & Alarms | 3 | Last alert, last alarm, active alert count |
 | Pump Status | 10 | Control-IQ mode, activity mode, cartridge insulin, CGM sensor type, suspend reason, site/cartridge/tubing age |
 | Pump Settings | 11 | Active profile + hourly schedule, max bolus, CIQ limits, alert thresholds |
@@ -83,13 +83,10 @@ using your existing Tandem Source account. No extra hardware required.
 | Last bolus food portion | Food portion (units) |
 | Estimated insulin remaining | Fill volume minus cumulative deliveries (units) |
 
-### Pump Battery (4)
+### Pump Battery (1)
 | Sensor | Description |
 |---|---|
 | Battery percentage | Current battery level (%) |
-| Battery voltage | Battery voltage (mV) |
-| Battery remaining | Remaining capacity (mAh) |
-| Charging status | Charging / Not charging |
 
 ### Alerts & Alarms (3)
 | Sensor | Description |
