@@ -76,11 +76,18 @@ The Tandem app uploads roughly once per hour when running unrestricted.
 
 ---
 
-## Upgrading from v1.3.x?
+## Upgrading from a pre-2.0 (`carelink`) release?
 
-Entity IDs now include a `tandem_` prefix (e.g. `sensor.tandem_last_glucose_level_mmol`).
-Update dashboards and automations after upgrading.
-Statistics Graph entities (`sensor.tandem_*`) are **not** affected.
+**v2.0.0 is a clean install, not an in-place upgrade.** The integration moved to
+the `tandem` domain and dropped the Medtronic CareLink path, so it does **not**
+migrate the old `carelink` config entry or its statistics history.
+
+1. Note your Tandem Source credentials (email, region, scan interval).
+2. Remove the old integration and delete the stale `config/custom_components/carelink/` folder.
+3. Install v2.0.0 and add **Tandem t:slim Pump** fresh.
+
+Entities are `sensor.tandem_*` — update any dashboards/automations that referenced the old ids.
+See the [README](https://github.com/jnctech/ha-tandem-pump#upgrading-from-the-old-carelink-domain-releases) for full details.
 
 ---
 
