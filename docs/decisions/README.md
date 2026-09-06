@@ -12,6 +12,9 @@ Lightweight records of key design decisions for ha-tandem-pump.
 | [ADR-004](ADR-004-error-handling.md) | Coordinator Error Handling Philosophy | Accepted |
 | [ADR-005](ADR-005-timezone-handling.md) | Pump Timestamp and Timezone Handling | Accepted |
 | [ADR-006](ADR-006-api-contract-management.md) | API Contract Management | Accepted |
+| [ADR-007](ADR-007-greenfield-v1-tandem-only.md) | Greenfield V1 — `tandem` domain, Tandem-only, house layout | Accepted |
+| [ADR-008](ADR-008-fail-visible-staleness.md) | Fail-visible staleness for decision-input sensors (safety) | Accepted |
+| [ADR-009](ADR-009-entity-golden-tests.md) | Entity-golden tests (syrupy snapshots + invariants) | Accepted |
 
 ## Template
 

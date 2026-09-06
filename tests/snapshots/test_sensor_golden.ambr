@@ -1,0 +1,3751 @@
+# serializer version: 1
+# name: test_binary_sensor_golden[binary_sensor.tandem_data_stale-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'binary_sensor.tandem_data_stale',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Data stale',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.PROBLEM: 'problem'>,
+    'original_icon': 'mdi:cloud-alert',
+    'original_name': 'Data stale',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_data_stale',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_binary_sensor_golden[binary_sensor.tandem_data_stale-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'problem',
+      'friendly_name': 'Tandem Data stale',
+      'icon': 'mdi:cloud-alert',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.tandem_data_stale',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_basal_profile-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_active_basal_profile',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Active basal profile',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:account-cog',
+    'original_name': 'Active basal profile',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_active_profile',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_basal_profile-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'carb_entry_enabled': True,
+      'friendly_name': 'Tandem Active basal profile',
+      'icon': 'mdi:account-cog',
+      'insulin_duration_hours': 5.0,
+      'profile_name': 'TestProfile',
+      'schedule': list([
+        dict({
+          'basal_rate': 1.2,
+          'carb_ratio': 10.0,
+          'isf_mgdl': 54,
+          'target_bg_mgdl': 110,
+          'time': '00:00',
+        }),
+        dict({
+          'basal_rate': 0.8,
+          'carb_ratio': 12.0,
+          'isf_mgdl': 72,
+          'target_bg_mgdl': 110,
+          'time': '08:00',
+        }),
+      ]),
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_active_basal_profile',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'TestProfile',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_insulin_iob-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_active_insulin_iob',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Active insulin (IOB)',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:water-alert',
+    'original_name': 'Active insulin (IOB)',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_active_insulin',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_insulin_iob-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Active insulin (IOB)',
+      'icon': 'mdi:water-alert',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_active_insulin_iob',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2.1',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_pump_alerts-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_active_pump_alerts',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Active pump alerts',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle-outline',
+    'original_name': 'Active pump alerts',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_active_alerts_count',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_active_pump_alerts-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Active pump alerts',
+      'icon': 'mdi:alert-circle-outline',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_active_pump_alerts',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_average_glucose_level_mg_dl-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_average_glucose_level_mg_dl',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Average glucose level mg/dl',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:chart-line',
+    'original_name': 'Average glucose level mg/dl',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_average_glucose_mgdl',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_average_glucose_level_mg_dl-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Average glucose level mg/dl',
+      'icon': 'mdi:chart-line',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_average_glucose_level_mg_dl',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '135',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_average_glucose_level_mmol-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_average_glucose_level_mmol',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Average glucose level mmol',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 1,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:chart-line',
+    'original_name': 'Average glucose level mmol',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_average_glucose_mmol',
+    'unit_of_measurement': 'mmol/L',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_average_glucose_level_mmol-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Average glucose level mmol',
+      'icon': 'mdi:chart-line',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mmol/L',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_average_glucose_level_mmol',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '7.49',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_percentage-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_basal_percentage',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Basal percentage',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chart-pie',
+    'original_name': 'Basal percentage',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_basal_bolus_split',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_percentage-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Basal percentage',
+      'icon': 'mdi:chart-pie',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_basal_percentage',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_rate-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_basal_rate',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Basal rate',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chart-line',
+    'original_name': 'Basal rate',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_basal_rate',
+    'unit_of_measurement': 'U/hr',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_rate-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Basal rate',
+      'icon': 'mdi:chart-line',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'U/hr',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_basal_rate',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '0.85',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_rate_limit-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_basal_rate_limit',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Basal rate limit',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:speedometer',
+    'original_name': 'Basal rate limit',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_basal_limit',
+    'unit_of_measurement': 'U/hr',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_basal_rate_limit-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Basal rate limit',
+      'icon': 'mdi:speedometer',
+      'unit_of_measurement': 'U/hr',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_basal_rate_limit',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2.0',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cartridge_insulin-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_cartridge_insulin',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Cartridge insulin',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:cup-water',
+    'original_name': 'Cartridge insulin',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cartridge_insulin',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cartridge_insulin-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Cartridge insulin',
+      'icon': 'mdi:cup-water',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cartridge_insulin',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_high_glucose_alert-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_cgm_high_glucose_alert',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM high glucose alert',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle',
+    'original_name': 'CGM high glucose alert',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_high_alert',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_high_glucose_alert-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM high glucose alert',
+      'icon': 'mdi:alert-circle',
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_high_glucose_alert',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '200',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_low_glucose_alert-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_cgm_low_glucose_alert',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM low glucose alert',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle-outline',
+    'original_name': 'CGM low glucose alert',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_low_alert',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_low_glucose_alert-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM low glucose alert',
+      'icon': 'mdi:alert-circle-outline',
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_low_glucose_alert',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '80',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_rate_of_change-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_cgm_rate_of_change',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM rate of change',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:trending-up',
+    'original_name': 'CGM rate of change',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_rate_of_change',
+    'unit_of_measurement': 'mg/dL/min',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_rate_of_change-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM rate of change',
+      'icon': 'mdi:trending-up',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL/min',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_rate_of_change',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_sensor_type-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_cgm_sensor_type',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM sensor type',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chip',
+    'original_name': 'CGM sensor type',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_sensor_type',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_sensor_type-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM sensor type',
+      'icon': 'mdi:chip',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_sensor_type',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_status-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_cgm_status',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM status',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle-outline',
+    'original_name': 'CGM status',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_status',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_status-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM status',
+      'icon': 'mdi:alert-circle-outline',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_status',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_usage-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_cgm_usage',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'CGM usage',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:percent',
+    'original_name': 'CGM usage',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_cgm_usage',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_cgm_usage-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem CGM usage',
+      'icon': 'mdi:percent',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_cgm_usage',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '95.0',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_enabled-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_control_iq_enabled',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Control-IQ enabled',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:robot',
+    'original_name': 'Control-IQ enabled',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_control_iq_enabled',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_enabled-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Control-IQ enabled',
+      'icon': 'mdi:robot',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_control_iq_enabled',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'On',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_mode-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_control_iq_mode',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Control-IQ mode',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:robot',
+    'original_name': 'Control-IQ mode',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_control_iq_mode',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_mode-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Control-IQ mode',
+      'icon': 'mdi:robot',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_control_iq_mode',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_status-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_control_iq_status',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Control-IQ status',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:robot',
+    'original_name': 'Control-IQ status',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_control_iq_status',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_status-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Control-IQ status',
+      'icon': 'mdi:robot',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_control_iq_status',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'Control-IQ',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_total_daily_insulin-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_control_iq_total_daily_insulin',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Control-IQ total daily insulin',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Control-IQ total daily insulin',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_control_iq_tdi',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_total_daily_insulin-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Control-IQ total daily insulin',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_control_iq_total_daily_insulin',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '60',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_weight-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_control_iq_weight',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Control-IQ weight',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 2,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.WEIGHT: 'weight'>,
+    'original_icon': 'mdi:weight-kilogram',
+    'original_name': 'Control-IQ weight',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_control_iq_weight',
+    'unit_of_measurement': <UnitOfMass.KILOGRAMS: 'kg'>,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_control_iq_weight-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'weight',
+      'friendly_name': 'Tandem Control-IQ weight',
+      'icon': 'mdi:weight-kilogram',
+      'unit_of_measurement': <UnitOfMass.KILOGRAMS: 'kg'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_control_iq_weight',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '74',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_basal_total-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_daily_basal_total',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Daily basal total',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chart-line',
+    'original_name': 'Daily basal total',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_daily_basal_total',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_basal_total-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Daily basal total',
+      'icon': 'mdi:chart-line',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_daily_basal_total',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_bolus_count-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_daily_bolus_count',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Daily bolus count',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:counter',
+    'original_name': 'Daily bolus count',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_daily_bolus_count',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_bolus_count-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Daily bolus count',
+      'icon': 'mdi:counter',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_daily_bolus_count',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_bolus_total-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_daily_bolus_total',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Daily bolus total',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Daily bolus total',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_daily_bolus_total',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_bolus_total-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Daily bolus total',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_daily_bolus_total',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_carbs-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_daily_carbs',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Daily carbs',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:food',
+    'original_name': 'Daily carbs',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_daily_carbs',
+    'unit_of_measurement': 'g',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_daily_carbs-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Daily carbs',
+      'icon': 'mdi:food',
+      'unit_of_measurement': 'g',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_daily_carbs',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_estimated_insulin_remaining-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_estimated_insulin_remaining',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Estimated insulin remaining',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Estimated insulin remaining',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_estimated_insulin_remaining',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_estimated_insulin_remaining-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Estimated insulin remaining',
+      'icon': 'mdi:needle',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_estimated_insulin_remaining',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_glucose_cv-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_glucose_cv',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Glucose CV',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chart-bell-curve-cumulative',
+    'original_name': 'Glucose CV',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_glucose_cv',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_glucose_cv-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Glucose CV',
+      'icon': 'mdi:chart-bell-curve-cumulative',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_glucose_cv',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_glucose_standard_deviation-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_glucose_standard_deviation',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Glucose standard deviation',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:chart-bell-curve',
+    'original_name': 'Glucose standard deviation',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_glucose_std_dev',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_glucose_standard_deviation-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Glucose standard deviation',
+      'icon': 'mdi:chart-bell-curve',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_glucose_standard_deviation',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_gmi-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_gmi',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'GMI',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:diabetes',
+    'original_name': 'GMI',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_gmi',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_gmi-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem GMI',
+      'icon': 'mdi:diabetes',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_gmi',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_high_bg_alert_threshold-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_high_bg_alert_threshold',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'High BG alert threshold',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle',
+    'original_name': 'High BG alert threshold',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_high_bg_threshold',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_high_bg_alert_threshold-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem High BG alert threshold',
+      'icon': 'mdi:alert-circle',
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_high_bg_alert_threshold',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '214',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bg_reading-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bg_reading',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last BG reading',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:blood-bag',
+    'original_name': 'Last BG reading',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bg_reading',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bg_reading-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Last BG reading',
+      'icon': 'mdi:blood-bag',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bg_reading',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Last bolus',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_units',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last bolus',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '3.5',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_bg-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus_bg',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus BG',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:water',
+    'original_name': 'Last bolus BG',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_bg',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_bg-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Last bolus BG',
+      'icon': 'mdi:water',
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus_bg',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_carbs_entered-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus_carbs_entered',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus carbs entered',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:food-apple',
+    'original_name': 'Last bolus carbs entered',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_carbs_entered',
+    'unit_of_measurement': 'g',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_carbs_entered-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last bolus carbs entered',
+      'icon': 'mdi:food-apple',
+      'unit_of_measurement': 'g',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus_carbs_entered',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_correction-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus_correction',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus correction',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Last bolus correction',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_correction',
+    'unit_of_measurement': 'U',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_correction-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last bolus correction',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'U',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus_correction',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_food_portion-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus_food_portion',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus food portion',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Last bolus food portion',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_food_portion',
+    'unit_of_measurement': 'U',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_food_portion-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last bolus food portion',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'U',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus_food_portion',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_time-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_bolus_time',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last bolus time',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:clock',
+    'original_name': 'Last bolus time',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_bolus_timestamp',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_bolus_time-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last bolus time',
+      'icon': 'mdi:clock',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_bolus_time',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2024-01-15T11:26:40+00:00',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_carb_entry-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_carb_entry',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last carb entry',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:food-apple',
+    'original_name': 'Last carb entry',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_carbs',
+    'unit_of_measurement': 'g',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_carb_entry-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last carb entry',
+      'icon': 'mdi:food-apple',
+      'unit_of_measurement': 'g',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_carb_entry',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_carb_entry_time-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_carb_entry_time',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last carb entry time',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:clock',
+    'original_name': 'Last carb entry time',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_carbs_timestamp',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_carb_entry_time-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last carb entry time',
+      'icon': 'mdi:clock',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_carb_entry_time',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_cartridge_change-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_cartridge_change',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last cartridge change',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:cup-water',
+    'original_name': 'Last cartridge change',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_cartridge_change',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_cartridge_change-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last cartridge change',
+      'icon': 'mdi:cup-water',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_cartridge_change',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_cartridge_fill_amount-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_cartridge_fill_amount',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last cartridge fill amount',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Last cartridge fill amount',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_cartridge_fill_amount',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_cartridge_fill_amount-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last cartridge fill amount',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_cartridge_fill_amount',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_delta-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_glucose_delta',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last glucose delta',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:plus-minus-variant',
+    'original_name': 'Last glucose delta',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_sg_delta',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_delta-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last glucose delta',
+      'icon': 'mdi:plus-minus-variant',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_glucose_delta',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_level_mg_dl-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_glucose_level_mg_dl',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last glucose level mg/dl',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:water',
+    'original_name': 'Last glucose level mg/dl',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_sg_mgdl',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_level_mg_dl-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Last glucose level mg/dl',
+      'icon': 'mdi:water',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_glucose_level_mg_dl',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '120',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_level_mmol-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_glucose_level_mmol',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last glucose level mmol',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 1,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:water',
+    'original_name': 'Last glucose level mmol',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_sg_mmol',
+    'unit_of_measurement': 'mmol/L',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_level_mmol-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Last glucose level mmol',
+      'icon': 'mdi:water',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mmol/L',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_glucose_level_mmol',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '6.66',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_update-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_glucose_update',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last glucose update',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:clock',
+    'original_name': 'Last glucose update',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_sg_timestamp',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_glucose_update-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last glucose update',
+      'icon': 'mdi:clock',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_glucose_update',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2024-01-15T12:00:00+00:00',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_meal_bolus-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_meal_bolus',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last meal bolus',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:food',
+    'original_name': 'Last meal bolus',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_meal_bolus',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_meal_bolus-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'bg': 120,
+      'carbs': 45,
+      'description': 'Standard',
+      'friendly_name': 'Tandem Last meal bolus',
+      'icon': 'mdi:food',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_meal_bolus',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '3.5',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_alarm-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_pump_alarm',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last pump alarm',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alarm-light',
+    'original_name': 'Last pump alarm',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_alarm',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_alarm-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last pump alarm',
+      'icon': 'mdi:alarm-light',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_pump_alarm',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_alert-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_pump_alert',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last pump alert',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle-outline',
+    'original_name': 'Last pump alert',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_alert',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_alert-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Last pump alert',
+      'icon': 'mdi:alert-circle-outline',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_pump_alert',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_upload-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_pump_upload',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last pump upload',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:cloud-upload',
+    'original_name': 'Last pump upload',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_upload',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_pump_upload-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last pump upload',
+      'icon': 'mdi:cloud-upload',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_pump_upload',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2024-01-15T12:00:00+00:00',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_site_change-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_site_change',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last site change',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Last site change',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_site_change',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_site_change-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last site change',
+      'icon': 'mdi:needle',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_site_change',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_tubing_change-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_tubing_change',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last tubing change',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:pipe',
+    'original_name': 'Last tubing change',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_tubing_change',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_tubing_change-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last tubing change',
+      'icon': 'mdi:pipe',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_tubing_change',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_update-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_last_update',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last update',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': 'mdi:clock',
+    'original_name': 'Last update',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_last_update_timestamp',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_last_update-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'timestamp',
+      'friendly_name': 'Tandem Last update',
+      'icon': 'mdi:clock',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_last_update',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2024-01-15T12:00:00+00:00',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_low_bg_alert_threshold-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_low_bg_alert_threshold',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Low BG alert threshold',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:alert-circle-outline',
+    'original_name': 'Low BG alert threshold',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_low_bg_threshold',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_low_bg_alert_threshold-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Low BG alert threshold',
+      'icon': 'mdi:alert-circle-outline',
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_low_bg_alert_threshold',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '70',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_low_insulin_alert_threshold-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_low_insulin_alert_threshold',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Low insulin alert threshold',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:battery-alert',
+    'original_name': 'Low insulin alert threshold',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_low_insulin_alert',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_low_insulin_alert_threshold-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Low insulin alert threshold',
+      'icon': 'mdi:battery-alert',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_low_insulin_alert_threshold',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '20',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_max_bolus_setting-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_max_bolus_setting',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Max bolus setting',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Max bolus setting',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_max_bolus',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_max_bolus_setting-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Max bolus setting',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_max_bolus_setting',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '14.0',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_predicted_glucose-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_predicted_glucose',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Predicted glucose',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.BLOOD_GLUCOSE_CONCENTRATION: 'blood_glucose_concentration'>,
+    'original_icon': 'mdi:crystal-ball',
+    'original_name': 'Predicted glucose',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_predicted_glucose',
+    'unit_of_measurement': 'mg/dL',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_predicted_glucose-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'blood_glucose_concentration',
+      'friendly_name': 'Tandem Predicted glucose',
+      'icon': 'mdi:crystal-ball',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mg/dL',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_predicted_glucose',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_activity_mode-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_pump_activity_mode',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump activity mode',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:run',
+    'original_name': 'Pump activity mode',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_activity_mode',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_activity_mode-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump activity mode',
+      'icon': 'mdi:run',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_activity_mode',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_level-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_battery_level',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump battery level',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.BATTERY: 'battery'>,
+    'original_icon': 'mdi:battery',
+    'original_name': 'Pump battery level',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_battery_percent',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_level-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'battery',
+      'friendly_name': 'Tandem Pump battery level',
+      'icon': 'mdi:battery',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_battery_level',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_remaining-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_battery_remaining',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump battery remaining',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:battery-charging',
+    'original_name': 'Pump battery remaining',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_battery_remaining_mah',
+    'unit_of_measurement': 'mAh',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_remaining-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump battery remaining',
+      'icon': 'mdi:battery-charging',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'mAh',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_battery_remaining',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_voltage-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_battery_voltage',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump battery voltage',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 0,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.VOLTAGE: 'voltage'>,
+    'original_icon': 'mdi:flash',
+    'original_name': 'Pump battery voltage',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_battery_voltage',
+    'unit_of_measurement': <UnitOfElectricPotential.MILLIVOLT: 'mV'>,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_battery_voltage-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'device_class': 'voltage',
+      'friendly_name': 'Tandem Pump battery voltage',
+      'icon': 'mdi:flash',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': <UnitOfElectricPotential.MILLIVOLT: 'mV'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_battery_voltage',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_charging_status-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_charging_status',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump charging status',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:power-plug',
+    'original_name': 'Pump charging status',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_charging_status',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_charging_status-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump charging status',
+      'icon': 'mdi:power-plug',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_charging_status',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_model-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_model',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump model',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:code-tags',
+    'original_name': 'Pump model',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_pump_model_info',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_model-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump model',
+      'icon': 'mdi:code-tags',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_model',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 't:slim X2',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_serial_number-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_pump_serial_number',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump serial number',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:identifier',
+    'original_name': 'Pump serial number',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_pump_serial_info',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_serial_number-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump serial number',
+      'icon': 'mdi:identifier',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_serial_number',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '12345678',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_suspend_reason-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_pump_suspend_reason',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump suspend reason',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:pause-circle-outline',
+    'original_name': 'Pump suspend reason',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_pump_suspend_reason',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_suspend_reason-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump suspend reason',
+      'icon': 'mdi:pause-circle-outline',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_suspend_reason',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_suspended-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_pump_suspended',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump suspended',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:pause-circle',
+    'original_name': 'Pump suspended',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_pump_suspended',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_pump_suspended-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Pump suspended',
+      'icon': 'mdi:pause-circle',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_pump_suspended',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_software_version-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.tandem_software_version',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Software version',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:code-tags',
+    'original_name': 'Software version',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_software_version',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_software_version-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Software version',
+      'icon': 'mdi:code-tags',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_software_version',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '7.6.0',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_above_range-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_time_above_range',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Time above range',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:arrow-up-bold',
+    'original_name': 'Time above range',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_time_above_range',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_above_range-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Time above range',
+      'icon': 'mdi:arrow-up-bold',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_time_above_range',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_below_range-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_time_below_range',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Time below range',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:arrow-down-bold',
+    'original_name': 'Time below range',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_time_below_range',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_below_range-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Time below range',
+      'icon': 'mdi:arrow-down-bold',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_time_below_range',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_in_range-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_time_in_range',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Time in range',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Time in range',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_time_in_range',
+    'unit_of_measurement': '%',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_time_in_range-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Time in range',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_time_in_range',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '72.5',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_total_daily_insulin-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.tandem_total_daily_insulin',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Total daily insulin',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:needle',
+    'original_name': 'Total daily insulin',
+    'platform': 'tandem',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'tandem_01JTANDEMGOLDEN000000000000_tandem_total_daily_insulin',
+    'unit_of_measurement': 'units',
+  })
+# ---
+# name: test_sensor_golden[sensor.tandem_total_daily_insulin-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'attribution': 'Data provided by Tandem Source',
+      'friendly_name': 'Tandem Total daily insulin',
+      'icon': 'mdi:needle',
+      'unit_of_measurement': 'units',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.tandem_total_daily_insulin',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---

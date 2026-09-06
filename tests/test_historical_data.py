@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-import sys
-import types
 from datetime import datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
-from dataclasses import dataclass
+from unittest.mock import AsyncMock
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     UNAVAILABLE,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_MGDL,
@@ -153,7 +148,7 @@ async def _setup_coordinator(
     mock_data: dict[str, Any],
 ):
     """Set up a TandemCoordinator with mocked data and return it."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -167,6 +162,7 @@ async def _setup_coordinator(
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -181,12 +177,7 @@ async def _setup_coordinator(
     )
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     await coordinator.async_config_entry_first_refresh()
     return coordinator
@@ -411,7 +402,7 @@ class TestSequenceDeduplication:
 
     async def test_stale_events_filtered_on_second_poll(self, hass: HomeAssistant):
         """Test that previously-seen events are filtered on the next poll."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -424,6 +415,7 @@ class TestSequenceDeduplication:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         first_events = [
             _make_cgm_event(seq=10, glucose_mgdl=100, minutes_ago=10),
@@ -453,12 +445,7 @@ class TestSequenceDeduplication:
         )
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         # First poll
         await coordinator.async_config_entry_first_refresh()
@@ -476,69 +463,12 @@ class TestSequenceDeduplication:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@dataclass
-class _MockStatisticData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticData."""
-
-    start: Any = None
-    mean: Any = None
-    min: Any = None
-    max: Any = None
-    state: Any = None
-    sum: Any = None
-
-
-@dataclass
-class _MockStatisticMetaData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticMetaData."""
-
-    has_mean: bool = False
-    has_sum: bool = False
-    name: str = ""
-    source: str = ""
-    statistic_id: str = ""
-    unit_of_measurement: str = ""
-
-
-def _install_mock_recorder_modules(mock_import_fn):
-    """Install fake recorder modules so the lazy import inside _import_statistics works.
-
-    Returns a cleanup function that removes the modules.
-    """
-    recorder_mod = types.ModuleType("homeassistant.components.recorder")
-    stats_mod = types.ModuleType("homeassistant.components.recorder.statistics")
-    models_mod = types.ModuleType("homeassistant.components.recorder.models")
-
-    stats_mod.async_import_statistics = mock_import_fn
-    models_mod.StatisticData = _MockStatisticData
-    models_mod.StatisticMetaData = _MockStatisticMetaData
-
-    keys = [
-        "homeassistant.components.recorder",
-        "homeassistant.components.recorder.statistics",
-        "homeassistant.components.recorder.models",
-    ]
-    saved = {k: sys.modules.get(k) for k in keys}
-    sys.modules["homeassistant.components.recorder"] = recorder_mod
-    sys.modules["homeassistant.components.recorder.statistics"] = stats_mod
-    sys.modules["homeassistant.components.recorder.models"] = models_mod
-
-    def cleanup():
-        for k in keys:
-            if saved[k] is None:
-                sys.modules.pop(k, None)
-            else:
-                sys.modules[k] = saved[k]
-
-    return cleanup
-
-
 class TestImportStatistics:
     """Tests for the _import_statistics method."""
 
-    async def test_statistics_imported_for_cgm(self, hass: HomeAssistant):
+    async def test_statistics_imported_for_cgm(self, hass: HomeAssistant, mock_import):
         """Test that CGM events generate statistics import calls."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -551,17 +481,13 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         events = [
             _make_cgm_event(seq=1, glucose_mgdl=100, minutes_ago=10),
@@ -569,24 +495,19 @@ class TestImportStatistics:
             _make_cgm_event(seq=3, glucose_mgdl=140, minutes_ago=0),
         ]
 
-        mock_import = MagicMock()
-        cleanup = _install_mock_recorder_modules(mock_import)
-        try:
-            await coordinator._import_statistics(events)
+        await coordinator._import_statistics(events)
 
-            # Should be called once for CGM stats (no IOB or basal in events)
-            assert mock_import.call_count == 1
-            call_args = mock_import.call_args
-            meta = call_args[0][1]
-            stats = call_args[0][2]
-            assert meta.unit_of_measurement == "mmol/L"
-            assert len(stats) == 3
-        finally:
-            cleanup()
+        # Should be called once for CGM stats (no IOB or basal in events)
+        assert mock_import.call_count == 1
+        call_args = mock_import.call_args
+        meta = call_args[0][1]
+        stats = call_args[0][2]
+        assert meta["unit_of_measurement"] == "mmol/L"
+        assert len(stats) == 3
 
-    async def test_statistics_period_rounded_to_hour(self, hass: HomeAssistant):
+    async def test_statistics_period_rounded_to_hour(self, hass: HomeAssistant, mock_import):
         """Test that statistics timestamps are rounded to the top of the hour."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
         from datetime import timezone as dt_tz
 
         entry = MockConfigEntry(
@@ -600,17 +521,13 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         # Create a CGM event at 12:07:30 UTC - should round to 12:00:00
         events = [
@@ -623,20 +540,15 @@ class TestImportStatistics:
             }
         ]
 
-        mock_import = MagicMock()
-        cleanup = _install_mock_recorder_modules(mock_import)
-        try:
-            await coordinator._import_statistics(events)
+        await coordinator._import_statistics(events)
 
-            stats = mock_import.call_args[0][2]
-            assert stats[0].start.minute == 0
-            assert stats[0].start.second == 0
-        finally:
-            cleanup()
+        stats = mock_import.call_args[0][2]
+        assert stats[0]["start"].minute == 0
+        assert stats[0]["start"].second == 0
 
-    async def test_statistics_handles_import_error(self, hass: HomeAssistant):
+    async def test_statistics_handles_import_error(self, hass: HomeAssistant, mock_import):
         """Test that import errors are handled gracefully."""
-        from custom_components.carelink import TandemCoordinator
+        from custom_components.tandem import TandemCoordinator
 
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -649,27 +561,19 @@ class TestImportStatistics:
             },
         )
         entry.add_to_hass(hass)
+        entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
         mock_client = AsyncMock()
         mock_client.login = AsyncMock(return_value=True)
         mock_client.close = AsyncMock()
 
-        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            TANDEM_CLIENT: mock_client,
-            PLATFORM_TYPE: PLATFORM_TANDEM,
-        }
-
-        coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+        coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
         events = [_make_cgm_event(seq=1, glucose_mgdl=120)]
 
-        mock_import = MagicMock(side_effect=Exception("DB error"))
-        cleanup = _install_mock_recorder_modules(mock_import)
-        try:
-            # Should not raise
-            await coordinator._import_statistics(events)
-        finally:
-            cleanup()
+        mock_import.side_effect = Exception("DB error")
+        # Should not raise
+        await coordinator._import_statistics(events)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

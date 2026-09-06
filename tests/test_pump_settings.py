@@ -7,15 +7,13 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
     UNAVAILABLE,
     TANDEM_SENSOR_KEY_LAST_UPLOAD,
     TANDEM_SENSOR_KEY_UPDATE_TIMESTAMP,
@@ -36,7 +34,7 @@ from custom_components.carelink.const import (
 
 async def _setup_coordinator(hass: HomeAssistant, mock_data: dict[str, Any]):
     """Set up a TandemCoordinator with mocked API calls and return it."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -50,6 +48,7 @@ async def _setup_coordinator(hass: HomeAssistant, mock_data: dict[str, Any]):
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -63,12 +62,7 @@ async def _setup_coordinator(hass: HomeAssistant, mock_data: dict[str, Any]):
     )
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     await coordinator.async_config_entry_first_refresh()
     return coordinator
@@ -249,9 +243,9 @@ class TestPumpSettingsMissing:
             assert coordinator.data[key] is UNAVAILABLE, f"Key {key} should be UNAVAILABLE"
 
     async def test_missing_control_iq(self, hass: HomeAssistant, mock_tandem_recent_data):
-        """Test missing controlIQSettings is handled gracefully."""
+        """Test missing controlIqSettings is handled gracefully."""
         data = copy.deepcopy(mock_tandem_recent_data)
-        data["pump_metadata"]["lastUpload"]["settings"]["controlIQSettings"] = None
+        data["pump_metadata"]["lastUpload"]["settings"]["controlIqSettings"] = None
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] is UNAVAILABLE
@@ -272,9 +266,9 @@ class TestPumpSettingsMissing:
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] == "On"
 
     async def test_control_iq_off(self, hass: HomeAssistant, mock_tandem_recent_data):
-        """Test Control-IQ ClosedLoop=0 reports 'Off'."""
+        """Test Control-IQ closedLoop=0 reports 'Off'."""
         data = copy.deepcopy(mock_tandem_recent_data)
-        data["pump_metadata"]["lastUpload"]["settings"]["controlIQSettings"]["ClosedLoop"] = 0
+        data["pump_metadata"]["lastUpload"]["settings"]["controlIqSettings"]["closedLoop"] = 0
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] == "Off"
@@ -326,12 +320,14 @@ class TestPumpSettingsMissing:
                                 },
                             ],
                         },
-                        "controlIQSettings": {"ClosedLoop": 1, "Weight": 70, "TotalDailyInsulin": 50},
-                        "pumpSettings": {"basalLimit": 2000, "maxBolus": 10000},
-                        "alertsAndReminders": {"lowInsulinThreshold": 15, "lowBgThreshold": 65, "highBgThreshold": 200},
+                        "controlIqSettings": {"closedLoop": 1, "weight": 70, "totalDailyInsulin": 50},
+                        "pumpSettings": {"lowInsulinThreshold": 15, "status": 0},
+                        "globalMaxBolusSettings": {"maxBolus": 10000},
+                        "basalLimitSettings": {"basalLimit": 2000},
+                        "reminders": {"lowBgThreshold": 65, "highBgThreshold": 200},
                         "cgmSettings": {
-                            "highGlucoseAlert": {"mgPerDl": 180, "enabled": 1},
-                            "lowGlucoseAlert": {"mgPerDl": 70, "enabled": 1},
+                            "highGlucoseAlertMgPerDl": 180,
+                            "lowGlucoseAlertMgPerDl": 70,
                         },
                     },
                 },

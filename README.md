@@ -139,7 +139,7 @@ using your existing Tandem Source account. No extra hardware required.
 </details>
 
 **Plus 6 long-term statistics** (CGM, IOB, basal, carbs, total bolus, correction bolus) compatible with
-HA's Statistics Graph card. Import months of history with `carelink.import_history`.
+HA's Statistics Graph card. Import months of history with `tandem.import_history`.
 
 ---
 
@@ -158,7 +158,7 @@ HA's Statistics Graph card. Import months of history with `carelink.import_histo
 1. HACS → Integrations → ⋮ → **Custom repositories** →
    add `https://github.com/jnctech/ha-tandem-pump` (category: Integration)
 2. Find **Tandem t:slim Pump** → **Download** → restart Home Assistant
-3. **Settings → Devices & Services → Add Integration** → search **Carelink** →
+3. **Settings → Devices & Services → Add Integration** → search **Tandem** →
    enter your Tandem Source email, password, and region
 
 That's it. No developer account. Your pump's data starts flowing within minutes.
@@ -168,8 +168,8 @@ Or click the **Add to HACS** button at the top of this page.
 ### Manual
 
 Download the [latest release](https://github.com/jnctech/ha-tandem-pump/releases/latest).
-**Delete** the existing `config/custom_components/carelink/` folder first (removes stale files
-from previous versions), then copy the new `custom_components/carelink/` into place.
+**Delete** the existing `config/custom_components/tandem/` folder first (removes stale files
+from previous versions), then copy the new `custom_components/tandem/` into place.
 Restart Home Assistant and add the integration as above.
 
 ---
@@ -194,7 +194,7 @@ New data appears in Home Assistant within minutes of each upload.
 
 Import months of CGM, insulin, carb, and correction bolus history into the Statistics Graph:
 
-**Developer Tools → Actions → `carelink.import_history`** → set a start and end date → Call Action
+**Developer Tools → Actions → `tandem.import_history`** → set a start and end date → Call Action
 
 | Field | Required | Description |
 |---|---|---|
@@ -224,35 +224,20 @@ This is an early mock-up — future releases will include more templates and das
 See [`examples/simple-dashboard.yaml`](examples/simple-dashboard.yaml) and
 [`examples/template_sensors.yaml`](examples/template_sensors.yaml) for details.
 
-## Upgrading
+## Upgrading from the old `carelink`-domain releases
 
-<details>
-<summary>From v1.3.x</summary>
+**v2.0.0 is a fresh start.** The integration moved to the `tandem` domain and
+dropped the Medtronic CareLink path, so it is a clean install — it does **not**
+migrate the old `carelink` config entry. If you ran any pre-2.0 (`carelink`-domain) release:
 
-Entity IDs now include a `tandem_` prefix.
+1. Note your Tandem Source credentials (email, region, scan interval).
+2. Remove the old integration (Settings → Devices & Services → the old
+   Carelink/Tandem entry → Delete) and delete the stale
+   `config/custom_components/carelink/` folder.
+3. Install v2.0.0 and add **Tandem t:slim Pump** fresh.
 
-| Before | After |
-|---|---|
-| `sensor.last_glucose_level_mmol` | `sensor.tandem_last_glucose_level_mmol` |
-
-Update dashboards and automations after upgrading.
-Statistics Graph entities (`sensor.carelink_*`) are **not** affected.
-
-</details>
-
-<details>
-<summary>From v1.2.x or earlier</summary>
-
-You may see a phantom **Tandem Pump** device with 0 entities — safe to delete.
-See [Duplicate Device →](TROUBLESHOOTING.md#duplicate-device-after-upgrade)
-
-If entities do not appear after upgrading, do a clean reinstall:
-1. Note your credentials (email, region, scan interval)
-2. Settings → Devices & Services → Carelink → Delete
-3. Update the integration and restart HA
-4. Re-add and enter your credentials
-
-</details>
+Entities are `sensor.tandem_*`; update any dashboards/automations that
+referenced the old ids.
 
 ---
 
@@ -264,7 +249,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for the full guide.
 |---|---|---|
 | Sensors show Unknown / data is stale | Tandem app battery-optimised | [Mobile App Settings →](TROUBLESHOOTING.md#mobile-app-settings) |
 | Authentication failure | Wrong region, or MFA enabled | [Configuration Issues →](TROUBLESHOOTING.md#configuration-issues) |
-| Sensors missing | Wrong platform selected at setup | [Missing Sensors →](TROUBLESHOOTING.md#missing-sensors) |
+| Sensors missing or unavailable | Pump hasn't synced recently (data stale) | Check `binary_sensor.tandem_data_stale`; see [Missing Sensors →](TROUBLESHOOTING.md#missing-sensors) |
 
 Open an issue: https://github.com/jnctech/ha-tandem-pump/issues
 
@@ -293,10 +278,5 @@ Have questions, ideas, or want to contribute? [Open an issue](https://github.com
 ## Credits
 
 Built and maintained by [@jnctech](https://github.com/jnctech).
-Original Carelink integration by [@yo-han](https://github.com/yo-han/Home-Assistant-Carelink).
 Tandem API research: [jwoglom/tconnectsync](https://github.com/jwoglom/tconnectsync) by [@jwoglom](https://github.com/jwoglom).
-
----
-
-> **Medtronic CareLink users:** This integration also supports Medtronic CareLink (limited sensors).
-> Use your CareLink credentials when adding the integration.
+Originally forked from the [Home-Assistant-Carelink](https://github.com/yo-han/Home-Assistant-Carelink) integration by [@yo-han](https://github.com/yo-han); v2.0.0 is a Tandem-only rewrite.

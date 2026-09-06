@@ -41,44 +41,43 @@
             ]
           },
           "basalIQSettings": null,
-          "controlIQSettings": {
-            "ClosedLoop": 1,
-            "Weight": 74,
-            "WeightUnit": 2,
-            "TotalDailyInsulin": 60,
-            "sleepSchedules": [
-              {
-                "activeDays": 127,
-                "startTime": 1439,
-                "endTime": 360,
-                "enabled": 1
-              }
-            ]
+          "controlIqSettings": {
+            "closedLoop": 1,
+            "weight": 74,
+            "weightUnit": 2,
+            "totalDailyInsulin": 60,
+            "sleepSchedule0": {
+              "activeDays": 127,
+              "startTime": 1439,
+              "endTime": 360,
+              "enabled": 1
+            }
           },
           "pumpProperties": {
             "partNum": "1013572"
           },
           "pumpSettings": {
-            "basalLimit": 2000,
-            "maxBolus": 14000,
-            "quickBolus": {
-              "incrementsUnits": 500,
-              "incrementsCarbs": 2000,
-              "active": 0,
-              "dataEntryType": 0,
-              "status": 0
-            }
-          },
-          "alertsAndReminders": {
-            "autoShutDownEnabled": 0,
-            "autoShutDownDuration": 12,
             "lowInsulinThreshold": 20,
-            "lowBg": {
+            "cannulaPrimeSize": 0,
+            "autoShutdownEnabled": 0,
+            "autoShutdownDuration": 12,
+            "status": 0
+          },
+          "globalMaxBolusSettings": {
+            "maxBolus": 14000,
+            "maxBolusDefault": 25000
+          },
+          "basalLimitSettings": {
+            "basalLimit": 2000,
+            "basalLimitDefault": 15000
+          },
+          "reminders": {
+            "lowBgReminder": {
               "frequencyMinutes": 15,
               "enabled": 1,
               "status": 2
             },
-            "highBg": {
+            "highBgReminder": {
               "frequencyMinutes": 60,
               "enabled": 1,
               "status": 3
@@ -88,44 +87,24 @@
               "enabled": 0,
               "status": 3
             },
-            "afterBolusBgReminder": {
-              "frequencyMinutes": 90,
-              "enabled": 0,
-              "status": 0
-            },
             "lowBgThreshold": 70,
             "highBgThreshold": 214,
             "siteChangeDays": 3,
             "status": 6
           },
           "cgmSettings": {
-            "highGlucoseAlert": {
-              "mgPerDl": 200,
-              "enabled": 1,
-              "duration": 0,
-              "status": 7
-            },
-            "lowGlucoseAlert": {
-              "mgPerDl": 80,
-              "enabled": 1,
-              "duration": 0,
-              "status": 7
-            },
-            "riseRateAlert": {
-              "level": 3,
-              "enabled": 1,
-              "status": 1
-            },
-            "fallRateAlert": {
-              "level": 3,
-              "enabled": 0,
-              "status": 5
-            },
-            "outOfRangeAlert": {
-              "enabled": 1,
-              "sensorTimeoutMinutes": 20,
-              "status": 5
-            }
+            "highGlucoseAlertMgPerDl": 200,
+            "highGlucoseAlertEnabled": 1,
+            "highGlucoseAlertDurationMin": 0,
+            "lowGlucoseAlertMgPerDl": 80,
+            "lowGlucoseAlertEnabled": 1,
+            "lowGlucoseAlertDurationMin": 0,
+            "riseRateAlertLevel": 3,
+            "riseRateAlertEnabled": 1,
+            "fallRateAlertLevel": 3,
+            "fallRateAlertEnabled": 0,
+            "sensorTimeoutMinutes": 20,
+            "cgmSensorType": 1
           },
           "localizationSettings": {
             "glucoseUOM": 1,
@@ -369,21 +348,22 @@
       "targetBg",
       "insulinDuration",
       "carbEntry",
-      "controlIQSettings",
-      "ClosedLoop",
-      "Weight",
-      "TotalDailyInsulin",
+      "controlIqSettings",
+      "closedLoop",
+      "weight",
+      "totalDailyInsulin",
       "pumpSettings",
+      "lowInsulinThreshold",
+      "globalMaxBolusSettings",
       "maxBolus",
+      "basalLimitSettings",
       "basalLimit",
       "cgmSettings",
-      "highGlucoseAlert",
-      "lowGlucoseAlert",
-      "mgPerDl",
-      "alertsAndReminders",
+      "highGlucoseAlertMgPerDl",
+      "lowGlucoseAlertMgPerDl",
+      "reminders",
       "lowBgThreshold",
-      "highBgThreshold",
-      "lowInsulinThreshold"
+      "highBgThreshold"
     ],
 
     "jwt_claim_fields": [

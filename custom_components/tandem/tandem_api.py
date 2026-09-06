@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import hashlib
 import json
 import logging
@@ -28,10 +29,13 @@ import ssl
 import struct
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 from urllib.parse import urlencode, urlparse, parse_qs
 
 import certifi
 import httpx
+
+from .exceptions import TandemApiError, TandemAuthError  # noqa: F401  (re-exported for callers)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,13 +43,10 @@ USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 )
 
-
-class TandemAuthError(Exception):
-    """Raised when authentication fails."""
-
-
-class TandemApiError(Exception):
-    """Raised when an API call fails."""
+# Per-request timeout (seconds). Applied on every call so behaviour is identical
+# whether we own the client or reuse Home Assistant's managed httpx client, whose
+# default timeout (5 s) is too short for the Tandem Source OIDC/report calls.
+REQUEST_TIMEOUT = 30.0
 
 
 # ── Binary pump event decoder ────────────────────────────────────────
@@ -91,7 +92,7 @@ EVT_CGM_DATA_FSL2 = 372
 EVT_CGM_DATA_G7 = 399
 
 
-def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
+def _decode_cgm_gxb_layout(evt: dict[str, Any], payload: bytes) -> None:
     """Decode GXB-style CGM payload (shared by events 256 and 399)."""
     evt["event_name"] = "CGM"
     evt["glucose_mgdl"] = struct.unpack_from(">H", payload, 4)[0]
@@ -100,7 +101,7 @@ def _decode_cgm_gxb_layout(evt: dict, payload: bytes) -> None:
     evt["status"] = struct.unpack_from(">H", payload, 2)[0]
 
 
-def decode_pump_events(raw_b64: str) -> list[dict]:
+def decode_pump_events(raw_b64: str) -> list[dict[str, Any]]:
     """Decode base64-encoded binary pump events into a list of dicts.
 
     Each returned dict contains:
@@ -112,14 +113,14 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
     """
     try:
         raw_bytes = base64.b64decode(raw_b64)
-    except (ValueError, base64.binascii.Error) as e:
+    except (ValueError, binascii.Error) as e:
         _LOGGER.error("Failed to base64-decode pump events: %s", e)
         return []
 
     num_events = len(raw_bytes) // EVENT_LEN
     _LOGGER.debug("Decoding %d pump events (%d bytes)", num_events, len(raw_bytes))
 
-    events = []
+    events: list[dict[str, Any]] = []
     event_id_counts: dict[int, int] = {}
     for i in range(num_events):
         chunk = raw_bytes[i * EVENT_LEN : (i + 1) * EVENT_LEN]
@@ -139,7 +140,7 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
         ts = datetime.fromtimestamp(TANDEM_EPOCH + ts_raw, tz=timezone.utc).replace(tzinfo=None)
         event_id_counts[event_id] = event_id_counts.get(event_id, 0) + 1
 
-        evt = {
+        evt: dict[str, Any] = {
             "event_id": event_id,
             "timestamp": ts,
             "seq": seq,
@@ -478,6 +479,303 @@ def decode_pump_events(raw_b64: str) -> list[dict]:
     return events
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Tandem Source BFF adapters
+#
+# Tandem migrated the Source Reports API from ``api/reports/reportsfacade/*`` to
+# ``api/reports/bff/*`` (~June 2026). The BFF returns pre-decoded JSON instead of
+# the base64 binary blob ``decode_pump_events`` parsed, and renames the device id
+# (``tconnectDeviceId`` → ``assignmentId``). These helpers translate the new BFF
+# shapes back into the legacy dicts the coordinator already consumes, so the
+# migration is contained to the API client and no coordinator/sensor code changes.
+#
+# eventProperties key names below are the server's camelCase keys, matched
+# case-insensitively via ``_norm`` and confirmed against a live EU account
+# (2026-09-06). CGM events 256 (GXB/G6), 372 (FSL2) and 399 (G7) share identical
+# properties, so all three map the same — important when a user swaps sensors.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Typed dict[Any, str] because the lookup key comes from eventProperties as
+# ``Any | None`` (a missing/None code falls through to the default).
+_SUSPEND_REASON_MAP: dict[Any, str] = {0: "User", 1: "Alarm", 2: "Malfunction", 3: "Auto-PLGS"}
+_USER_MODE_MAP: dict[Any, str] = {0: "Normal", 1: "Sleep", 2: "Exercise", 3: "Eating Soon"}
+_PCM_MAP: dict[Any, str] = {0: "No Control", 1: "Open Loop", 2: "Pining", 3: "Closed Loop"}
+_BG_ENTRY_TYPE_MAP: dict[Any, str] = {0: "Manual", 1: "Dexcom EGV"}
+_CGM_SENSOR_TYPE_MAP: dict[Any, str] = {0: "No CGM", 1: "G6", 2: "Libre 2", 3: "G7"}
+
+
+def _as_bool(value: Any) -> Any:
+    """Coerce a BFF flag to bool, preserving None (absent → None, not False)."""
+    return bool(value) if value is not None else None
+
+
+# CGM event codes that share the GXB eventProperties layout (G6, FSL2, G7).
+_CGM_EVENT_IDS = (EVT_CGM_DATA_GXB, EVT_CGM_DATA_FSL2, EVT_CGM_DATA_G7)
+
+
+def _norm(key: str) -> str:
+    """Normalise an eventProperties key for robust lookup (lowercase, alnum)."""
+    return re.sub(r"[^a-z0-9]", "", key.lower())
+
+
+def _round(value: Any, ndigits: int) -> Any:
+    """Round a numeric value, tolerating None (returns None unchanged)."""
+    return round(value, ndigits) if isinstance(value, (int, float)) else value
+
+
+def _bitmask_to_int(value: Any) -> Any:
+    """Convert a BFF bitmask field to the int the coordinator expects.
+
+    Bitmask eventProperties (bolusType, changeType, cgmDataType, …) arrive from
+    the BFF as arrays of set-bit indices, e.g. ``[4]`` meaning bit 4 is set
+    (= 0x10). The old binary decoder produced a plain int, and the coordinator
+    still does integer bit tests on these (``bolus_type & 0x10``), so an array
+    here raises ``TypeError``. Convert ``[i, j, …]`` → ``sum(1 << i)``; pass an
+    int through unchanged and None → None.
+    """
+    if isinstance(value, (list, tuple)):
+        result = 0
+        for bit in value:
+            try:
+                result |= 1 << int(bit)
+            except (TypeError, ValueError):
+                continue
+        return result
+    return value
+
+
+def _parse_pump_datetime(value: str | None) -> datetime | None:
+    """Parse a BFF ``pumpDateTime`` into a NAIVE datetime in pump-local time.
+
+    The BFF sends pump-local wall-clock timestamps (e.g. "2026-09-05T14:22:33").
+    The coordinator attaches the real pump timezone afterwards, exactly as it did
+    for the old binary decoder, so we return a naive datetime carrying the same
+    wall-clock and never shift it. (``estimatedDateTime`` is the UTC form and must
+    NOT be used here — it would double-shift.)
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "")).replace(tzinfo=None)
+    except (ValueError, AttributeError):
+        return None
+
+
+def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
+    """Map one BFF ``pump-logs`` JSON event to the legacy decoded-event dict.
+
+    Returns the same shape ``decode_pump_events`` produced (``event_id``,
+    ``timestamp`` naive-local, ``event_name`` + per-type payload fields), or
+    ``None`` for event types the coordinator does not consume from this path.
+
+    NOTE (staged): core event types plus the bolus-calculator (64/65/66) and
+    Control-IQ daily status (313, CGM sensor type) are mapped. Still unmapped —
+    their sensors read unavailable (null-not-guess) until added: battery/status
+    (9/34/35/53), alerts/alarms (4/5/6/26/27/28), USB charging (36/37), daily
+    basal (81), new day (90), PLGS (140), CGM session (212/213/214). Live
+    eventProperties keys are recorded in .remember/BFF-LIVE-VALIDATION-2026-09-06.md.
+    """
+    event_id = event.get("eventCode")
+    ts = _parse_pump_datetime(event.get("pumpDateTime"))
+    if event_id is None or ts is None:
+        return None
+
+    props = {_norm(k): v for k, v in (event.get("eventProperties") or {}).items()}
+    g = props.get
+    evt: dict[str, Any] = {"event_id": event_id, "timestamp": ts, "seq": event.get("sequenceNumber")}
+
+    if event_id in _CGM_EVENT_IDS:
+        evt["event_name"] = "CGM"
+        evt["glucose_mgdl"] = g("currentglucosedisplayvalue")
+        rate = g("rate")
+        evt["rate_of_change"] = round(rate * 0.1, 1) if isinstance(rate, (int, float)) else None
+        evt["status"] = g("glucosevaluestatus")
+
+    elif event_id in (EVT_BOLUS_COMPLETED, EVT_BOLEX_COMPLETED):
+        evt["event_name"] = "BolusCompleted" if event_id == EVT_BOLUS_COMPLETED else "BolexCompleted"
+        evt["bolus_id"] = g("bolusid")
+        evt["completion_status"] = g("completionstatus")
+        evt["iob"] = _round(g("iob"), 2)
+        evt["insulin_delivered"] = _round(g("insulindelivered"), 2)
+        evt["insulin_requested"] = _round(g("insulinrequested"), 2)
+
+    elif event_id == EVT_BOLUS_DELIVERY:
+        evt["event_name"] = "BolusDelivery"
+        # bolusType is a bitmask array from the BFF; the coordinator bit-tests it
+        # (``bolus_type & 0x10`` for meal-bolus detection), so coerce to int.
+        evt["bolus_type"] = _bitmask_to_int(g("bolustype"))
+        evt["delivery_status"] = g("bolusdeliverystatus")  # 0=completed, 1=started
+        evt["bolus_id"] = g("bolusid")
+        evt["requested_now_mu"] = g("requestednow")
+        evt["correction_mu"] = g("correction")
+        delivered_total = g("deliveredtotal")
+        evt["delivered_total_mu"] = delivered_total
+        evt["insulin_delivered"] = (
+            round(delivered_total / 1000.0, 3) if isinstance(delivered_total, (int, float)) else None
+        )
+
+    elif event_id == EVT_BASAL_RATE_CHANGE:
+        evt["event_name"] = "BasalRateChange"
+        evt["commanded_rate"] = _round(g("commandedbasalrate"), 3)
+        evt["base_rate"] = _round(g("basebasalrate"), 3)
+        evt["max_rate"] = _round(g("maxbasalrate"), 3)
+        evt["change_type"] = _bitmask_to_int(g("changetype"))
+
+    elif event_id == EVT_BASAL_DELIVERY:
+        evt["event_name"] = "BasalDelivery"
+        evt["commanded_source"] = g("commandedratesource")
+        evt["profile_rate_mu"] = g("profilebasalrate")
+        commanded_rate_mu = g("commandedrate")
+        evt["commanded_rate_mu"] = commanded_rate_mu
+        evt["commanded_rate"] = (
+            round(commanded_rate_mu / 1000.0, 3) if isinstance(commanded_rate_mu, (int, float)) else None
+        )
+
+    elif event_id == EVT_PUMPING_SUSPENDED:
+        evt["event_name"] = "PumpingSuspended"
+        reason = g("suspendreason")
+        evt["suspend_reason_id"] = reason
+        evt["suspend_reason"] = _SUSPEND_REASON_MAP.get(reason, f"Unknown ({reason})")
+        evt["insulin_amount"] = _round(g("insulinamount"), 2)
+
+    elif event_id == EVT_PUMPING_RESUMED:
+        evt["event_name"] = "PumpingResumed"
+        evt["pre_resume_state"] = g("preresumestate")
+        evt["insulin_amount"] = _round(g("insulinamount"), 2)
+
+    elif event_id == EVT_BG_READING_TAKEN:
+        evt["event_name"] = "BGReading"
+        evt["bg_mgdl"] = g("bg")
+        evt["iob"] = _round(g("iob"), 2)
+        entry_type = g("bgentrytype")
+        evt["entry_type"] = _BG_ENTRY_TYPE_MAP.get(entry_type, f"Type_{entry_type}")
+
+    elif event_id == EVT_CARTRIDGE_FILLED:
+        evt["event_name"] = "CartridgeFilled"
+        volume = g("v2volume")
+        if volume is None:
+            volume = g("insulinvolume")
+        evt["insulin_volume"] = _round(volume, 1)
+
+    elif event_id == EVT_CARBS_ENTERED:
+        evt["event_name"] = "CarbsEntered"
+        carbs = g("carbs")
+        evt["carbs"] = round(carbs) if isinstance(carbs, (int, float)) else None
+
+    elif event_id in (EVT_CANNULA_FILLED, EVT_TUBING_FILLED):
+        evt["event_name"] = "CannulaFilled" if event_id == EVT_CANNULA_FILLED else "TubingFilled"
+        evt["prime_size"] = _round(g("primesize"), 2)
+        evt["completion_status"] = g("completionstatus")
+
+    elif event_id == EVT_AA_USER_MODE_CHANGE:
+        evt["event_name"] = "UserModeChange"
+        current = g("currentusermode")
+        previous = g("previoususermode")
+        evt["current_mode_id"] = current
+        evt["previous_mode_id"] = previous
+        evt["current_mode"] = _USER_MODE_MAP.get(current, f"Mode_{current}")
+        evt["previous_mode"] = _USER_MODE_MAP.get(previous, f"Mode_{previous}")
+
+    elif event_id == EVT_AA_PCM_CHANGE:
+        evt["event_name"] = "PCMChange"
+        current = g("currentpcm")
+        previous = g("previouspcm")
+        evt["current_pcm"] = _PCM_MAP.get(current, f"PCM_{current}")
+        evt["previous_pcm"] = _PCM_MAP.get(previous, f"PCM_{previous}")
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG1:
+        # Bolus calculator message 1 — carbs/BG/IOB at request time. Joined with
+        # msg2/msg3 by bolus_id in the coordinator to build the last-bolus detail.
+        evt["event_name"] = "BolusRequestedMsg1"
+        evt["bolus_id"] = g("bolusid")
+        evt["bg_mgdl"] = g("bg")
+        evt["iob"] = _round(g("iob"), 2)
+        evt["carb_amount"] = g("carbamount")
+        carb_ratio = g("carbratio")
+        # Carb ratio is fixed-point g/u * 1000 (matches the binary decoder).
+        evt["carb_ratio"] = round(carb_ratio / 1000.0, 1) if isinstance(carb_ratio, (int, float)) else None
+        evt["bolus_type"] = _bitmask_to_int(g("bolustype"))
+        evt["correction_included"] = _as_bool(g("correctionbolusincluded"))
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG2:
+        evt["event_name"] = "BolusRequestedMsg2"
+        evt["bolus_id"] = g("bolusid")
+        evt["standard_percent"] = g("standardpercent")
+        evt["target_bg"] = g("targetbg")
+        evt["isf"] = g("isf")
+        evt["duration_minutes"] = g("duration")
+        evt["declined_correction"] = _as_bool(g("declinedcorrection"))
+        evt["user_override"] = _as_bool(g("useroverride"))
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG3:
+        # Bolus calculator message 3 — the delivered split. Carries the msg3
+        # timestamp the coordinator uses to pick the latest complete record.
+        evt["event_name"] = "BolusRequestedMsg3"
+        evt["bolus_id"] = g("bolusid")
+        evt["food_bolus_size"] = _round(g("foodbolussize"), 2)
+        evt["correction_bolus_size"] = _round(g("correctionbolussize"), 2)
+        evt["total_bolus_size"] = _round(g("totalbolussize"), 2)
+
+    elif event_id == EVT_AA_DAILY_STATUS:
+        # Control-IQ daily status — carries the active CGM sensor type.
+        evt["event_name"] = "AADailyStatus"
+        sensor_type = g("sensortype")
+        evt["sensor_type_id"] = sensor_type
+        evt["sensor_type"] = _CGM_SENSOR_TYPE_MAP.get(sensor_type, f"Unknown ({sensor_type})")
+        evt["user_mode"] = g("usermode")
+        evt["pump_control_state"] = g("pumpcontrolstate")
+
+    else:
+        return None
+
+    return evt
+
+
+def _bff_pump_to_legacy(pump: dict[str, Any], pumper: dict[str, Any]) -> dict[str, Any]:
+    """Map one BFF ``pumps[]`` entry to the legacy pump-metadata dict shape.
+
+    Preserves the keys the coordinator reads from the old reportsfacade
+    ``pumpeventmetadata`` response. ``settings.details`` carries the new
+    pump-settings blob (shape differs from the old ``lastUpload.settings``; the
+    settings sensors degrade to unavailable rather than fabricate until that
+    blob is remapped).
+    """
+    settings = pump.get("settings") or {}
+    settings_details = settings.get("details") if isinstance(settings, dict) else None
+    name = pumper.get("name") or " ".join(p for p in (pumper.get("firstName"), pumper.get("lastName")) if p)
+    return {
+        "tconnectDeviceId": pump.get("assignmentId"),
+        "assignmentId": pump.get("assignmentId"),
+        "serialNumber": pump.get("serialNumber"),
+        "modelNumber": pump.get("modelNumber") or pump.get("modelName"),
+        "softwareVersion": pump.get("softwareVersion"),
+        "partNumber": pump.get("partNumber"),
+        "maxDateWithEvents": pump.get("maxDateOfEvents"),
+        "patientName": name or None,
+        "lastUpload": {
+            "lastUploadedAt": pump.get("lastUploadDate"),
+            "settings": settings_details,
+        },
+        "_bff_pump": pump,
+    }
+
+
+def _select_active_first(legacy_pumps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the pumps ordered with the active (latest-event) pump first.
+
+    Fixes the multi-pump bug (issue #65): Tandem never deletes retired pumps and
+    the BFF lists them alongside the active one, so picking ``pumps[0]`` can select
+    a years-old pump. Ordering key is ``maxDateWithEvents``; pumps that have never
+    uploaded (None) sort last. Mirrors tconnectsync's ChooseDevice.choose().
+    """
+
+    def sort_key(p: dict[str, Any]) -> tuple[int, str]:
+        max_date = p.get("maxDateWithEvents")
+        return (1 if max_date else 0, max_date or "")
+
+    return sorted(legacy_pumps, key=sort_key, reverse=True)
+
+
 class TandemSourceClient:
     """Async API client for Tandem Diabetes Source platform."""
 
@@ -508,7 +806,13 @@ class TandemSourceClient:
         },
     }
 
-    def __init__(self, email: str, password: str, region: str = "EU"):
+    def __init__(
+        self,
+        email: str,
+        password: str,
+        region: str = "EU",
+        session: httpx.AsyncClient | None = None,
+    ):
         self.email = email
         self.password = password
         self.region = region.upper()
@@ -522,18 +826,26 @@ class TandemSourceClient:
         self.account_id: str | None = None
         self.token_expires_at: float = 0
 
-        self._client: httpx.AsyncClient | None = None
+        # When a session is injected (Home Assistant's managed httpx client) we
+        # reuse it and never build or close our own — HA owns its lifecycle. Only
+        # when constructed standalone (tests, scripts) do we own a self-made client.
+        self._client: httpx.AsyncClient | None = session
+        self._owns_client: bool = session is None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the async HTTP client.
+        """Return the async HTTP client.
 
-        Creates the SSL context in an executor to avoid blocking the event loop
-        with load_verify_locations().
+        When Home Assistant's managed client was injected, reuse it verbatim —
+        never rebuild or close it. Otherwise lazily build our own, creating the SSL
+        context in an executor to avoid blocking the event loop with
+        load_verify_locations().
         """
+        if not self._owns_client:
+            return self._client  # type: ignore[return-value]  # injected, non-None by construction
         if self._client is None or self._client.is_closed:
             loop = asyncio.get_running_loop()
 
-            def _build_ssl_ctx():
+            def _build_ssl_ctx() -> ssl.SSLContext:
                 ctx = ssl.create_default_context(cafile=certifi.where())
                 ctx.minimum_version = ssl.TLSVersion.TLSv1_2
                 return ctx
@@ -576,7 +888,11 @@ class TandemSourceClient:
 
         # Step 1: Initialize session (establish cookies)
         try:
-            await client.get(self.LOGIN_PAGE_URL)
+            await client.get(
+                self.LOGIN_PAGE_URL,
+                headers=self._login_headers(),
+                timeout=REQUEST_TIMEOUT,
+            )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Cannot reach login page: {e}") from e
 
@@ -585,7 +901,8 @@ class TandemSourceClient:
             login_resp = await client.post(
                 self.urls["LOGIN_API"],
                 json={"username": self.email, "password": self.password},
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Login request failed: {e}") from e
@@ -613,9 +930,16 @@ class TandemSourceClient:
         }
 
         try:
+            # The OAuth authorization code is delivered via a 302 to the
+            # redirect_uri (…/callback?code=…). We must follow that redirect to
+            # read the code off the final URL. An injected Home Assistant client
+            # (get_async_client) defaults to follow_redirects=False, so force it
+            # per-request rather than rely on the client's default.
             auth_resp = await client.get(
                 self.urls["AUTHORIZE"] + "?" + urlencode(auth_params),
-                headers={"Referer": self.LOGIN_PAGE_URL},
+                headers=self._login_headers({"Referer": self.LOGIN_PAGE_URL}),
+                timeout=REQUEST_TIMEOUT,
+                follow_redirects=True,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Authorization request failed: {e}") from e
@@ -644,7 +968,8 @@ class TandemSourceClient:
             token_resp = await client.post(
                 self.urls["TOKEN"],
                 data=token_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers=self._login_headers({"Content-Type": "application/x-www-form-urlencoded"}),
+                timeout=REQUEST_TIMEOUT,
             )
         except httpx.HTTPError as e:
             raise TandemAuthError(f"Token exchange failed: {e}") from e
@@ -672,12 +997,14 @@ class TandemSourceClient:
             self.region,
         )
 
-    def _extract_jwt_claims(self):
+    def _extract_jwt_claims(self) -> None:
         """Extract claims from the id_token JWT payload.
 
         We skip cryptographic verification since we received the token over
         HTTPS directly from the token endpoint.
         """
+        if self.id_token is None:
+            raise TandemAuthError("No id_token available to decode")
         parts = self.id_token.split(".")
         if len(parts) != 3:
             raise TandemAuthError("Invalid JWT format")
@@ -704,14 +1031,37 @@ class TandemSourceClient:
             self.account_id,
         )
 
-    def _api_headers(self) -> dict:
-        """Get headers for authenticated API requests."""
+    def _login_headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+        """Headers for the unauthenticated OIDC login requests.
+
+        Carries the User-Agent explicitly rather than relying on a client-level
+        default, so the login flow behaves identically on Home Assistant's managed
+        client (which has no default UA) as on our self-made one.
+        """
+        headers = {"User-Agent": USER_AGENT}
+        if extra:
+            headers.update(extra)
+        return headers
+
+    def _api_headers(self) -> dict[str, str]:
+        """Get headers for authenticated API requests.
+
+        The Tandem Source WAF enforces same-origin on the ``api/reports/bff/*``
+        endpoints: ``Origin``/``Referer`` must match SOURCE_URL
+        (source.tandemdiabetes.com / source.eu.tandemdiabetes.com) or the
+        request is rejected with HTTP 403 ("The request is blocked"). The old
+        reportsfacade endpoints did not require this; sending it on every
+        request is harmless for endpoints that don't enforce it.
+        """
+        source_url = self.urls["SOURCE_URL"]
         return {
             "Authorization": f"Bearer {self.access_token}",
             "User-Agent": USER_AGENT,
+            "Origin": source_url.rstrip("/"),
+            "Referer": source_url,
         }
 
-    async def _api_get(self, url: str, _retries: int = 2) -> dict:
+    async def _api_get(self, url: str, _retries: int = 2) -> Any:
         """Make an authenticated GET request with automatic re-login on 401.
 
         Retries transient network errors (connection reset, timeout, DNS)
@@ -722,7 +1072,7 @@ class TandemSourceClient:
 
         for attempt in range(_retries + 1):
             try:
-                resp = await client.get(url, headers=self._api_headers())
+                resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
                 break
             except (
                 httpx.ConnectError,
@@ -753,7 +1103,7 @@ class TandemSourceClient:
             await self.login()
             if not self.access_token:
                 raise TandemAuthError("Re-authentication succeeded but no token obtained")
-            resp = await client.get(url, headers=self._api_headers())
+            resp = await client.get(url, headers=self._api_headers(), timeout=REQUEST_TIMEOUT)
 
         if resp.status_code != 200:
             raise TandemApiError(f"API GET {url} failed ({resp.status_code}): {resp.text[:300]}")
@@ -762,27 +1112,41 @@ class TandemSourceClient:
 
     # ── Tandem Source API endpoints ──────────────────────────────────────
 
-    async def get_pumper_info(self) -> dict:
+    async def get_pumper_info(self) -> dict[str, Any]:
         """Get user and pump information."""
-        return await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        return cast(
+            "dict[str, Any]", await self._api_get(f"{self.urls['SOURCE_URL']}api/pumpers/pumpers/{self.pumper_id}")
+        )
 
-    async def get_pump_event_metadata(self) -> list:
+    async def get_pump_event_metadata(self) -> list[dict[str, Any]]:
         """Get pump event metadata (serial, model, last upload, etc.).
 
-        Returns a list of dicts, one per pump on the account. Each dict has:
-        tconnectDeviceId, serialNumber, modelNumber, minDateWithEvents,
-        maxDateWithEvents, lastUpload, patientName, patientDateOfBirth,
-        patientCareGiver, softwareVersion, partNumber
+        Uses the Tandem Source BFF endpoint ``api/reports/bff/pumper/{pumperId}``
+        (the old ``reportsfacade/.../pumpeventmetadata`` path was removed ~June
+        2026 and now returns 403/404). The BFF response is
+        ``{firstName, lastName, ..., pumps: [...]}``; each pump is mapped back to
+        the legacy metadata shape the coordinator expects.
+
+        Returns a list of dicts, one per pump, ordered with the active
+        (most-recently-uploaded) pump FIRST so callers that take ``[0]`` select
+        the pump actually in use rather than a retired one (issue #65). Each dict
+        has: tconnectDeviceId (= BFF assignmentId), serialNumber, modelNumber,
+        maxDateWithEvents, lastUpload, patientName, softwareVersion, partNumber.
         """
-        return await self._api_get(
-            f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/{self.pumper_id}/pumpeventmetadata"
-        )
+        response = await self._api_get(f"{self.urls['SOURCE_URL']}api/reports/bff/pumper/{self.pumper_id}")
+
+        pumper = response if isinstance(response, dict) else {}
+        raw_pumps = pumper.get("pumps")
+        pumps = raw_pumps if isinstance(raw_pumps, list) else []
+
+        legacy_pumps = [_bff_pump_to_legacy(pump, pumper) for pump in pumps]
+        return _select_active_first(legacy_pumps)
 
     # ── ControlIQ API endpoints ──────────────────────────────────────────
     # These use the TDC services base URL and may or may not accept the
     # Tandem Source OIDC access token. Failures are handled gracefully.
 
-    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_timeline(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy timeline data (basal, bolus, CGM readings).
 
         Args:
@@ -797,12 +1161,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/therapytimeline/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy timeline not available: %s", e)
             return None
 
-    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict | None:
+    async def get_dashboard_summary(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch dashboard summary statistics.
 
         Args:
@@ -817,12 +1181,12 @@ class TandemSourceClient:
                 f"{self.urls['TDC_BASE']}tconnect/controliq/api/summary/"
                 f"users/{user_guid}?startDate={start_date}&endDate={end_date}"
             )
-            return await self._api_get(url)
+            return cast("dict[str, Any]", await self._api_get(url))
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Dashboard summary not available: %s", e)
             return None
 
-    async def get_therapy_events(self, start_date: str, end_date: str) -> dict | None:
+    async def get_therapy_events(self, start_date: str, end_date: str) -> dict[str, Any] | None:
         """Fetch therapy events used by the webui Therapy Timeline.
 
         Args:
@@ -836,109 +1200,91 @@ class TandemSourceClient:
                 f"TherapyEvents/{start_date}/{end_date}/false?userId={user_guid}"
             )
             _LOGGER.debug("Tandem: Attempting therapy_events API: %s", url)
-            result = await self._api_get(url)
+            result: dict[str, Any] = await self._api_get(url)
             _LOGGER.debug("Tandem: therapy_events returned type=%s", type(result).__name__)
             return result
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.debug("Therapy events API not available: %s", e)
             return None
 
-    async def get_pump_events(self, device_id: str | int, start_date: str, end_date: str) -> list[dict] | None:
-        """Fetch and decode pump events from the Source Reports API.
+    # The BFF pump-logs endpoint caps each request at roughly four weeks, so a
+    # longer range must be paged in windows no larger than this.
+    _PUMP_LOGS_WINDOW_DAYS = 28
 
-        The pumpevents endpoint returns base64-encoded binary data using
-        Tandem's proprietary 26-byte record format. This method fetches the
-        raw response, decodes the binary, and returns structured event dicts.
+    @staticmethod
+    def _pump_log_windows(start_date: str, end_date: str) -> list[tuple[str, str]]:
+        """Split an inclusive YYYY-MM-DD range into <=28-day (start, end) windows."""
+        start = datetime.fromisoformat(start_date).date()
+        end = datetime.fromisoformat(end_date).date()
+        if end < start:
+            start, end = end, start
+
+        windows: list[tuple[str, str]] = []
+        cur = start
+        step = timedelta(days=TandemSourceClient._PUMP_LOGS_WINDOW_DAYS - 1)
+        while cur <= end:
+            win_end = min(cur + step, end)
+            windows.append((cur.isoformat(), win_end.isoformat()))
+            cur = win_end + timedelta(days=1)
+        return windows
+
+    async def get_pump_events(
+        self, device_id: str | int, start_date: str, end_date: str
+    ) -> list[dict[str, Any]] | None:
+        """Fetch and decode pump events from the Source BFF pump-logs endpoint.
+
+        Uses ``api/reports/bff/pump-logs/{assignmentId}`` (the old base64-binary
+        ``reportsfacade/pumpevents`` path was removed ~June 2026). The BFF returns
+        pre-decoded JSON (``{events, clockChanges}``) with per-event
+        ``eventProperties``; each event is mapped back to the legacy decoded-event
+        dict via :func:`map_pump_log_event`, so the coordinator is unchanged.
+
+        The endpoint caps the window at ~4 weeks, so the range is paged in 28-day
+        windows and de-duplicated by (sequenceGroup, sequenceNumber).
 
         Args:
-            device_id: tconnectDeviceId from pump metadata
+            device_id: assignmentId (UUID) from pump metadata (``tconnectDeviceId``)
             start_date: Date in YYYY-MM-DD format
             end_date: Date in YYYY-MM-DD format
 
         Returns list of decoded event dicts, or None if unavailable.
         """
         try:
-            user_id = self.pumper_id or self.account_id
+            seen: set[tuple[Any, Any]] = set()
+            events: list[dict[str, Any]] = []
+            raw_event_count = 0
 
-            # Request event types we need for sensor data
-            event_ids = (
-                "4,"  # ALERT_ACTIVATED
-                "5,"  # ALARM_ACTIVATED
-                "6,"  # MALFUNCTION_ACTIVATED
-                "11,"  # PUMPING_SUSPENDED
-                "12,"  # PUMPING_RESUMED
-                "16,"  # BG_READING_TAKEN (manual BG)
-                "20,"  # BOLUS_COMPLETED (IOB, delivered, requested)
-                "21,"  # BOLEX_COMPLETED (extended bolus completion)
-                "26,"  # ALERT_CLEARED
-                "28,"  # ALARM_CLEARED
-                "33,"  # CARTRIDGE_FILLED
-                "36,"  # USB_CONNECTED (charging)
-                "37,"  # USB_DISCONNECTED
-                "48,"  # CARBS_ENTERED
-                "53,"  # SHELF_MODE (battery detail)
-                "64,"  # BOLUS_REQUESTED_MSG1 (bolus calculator: BG, carbs, IOB)
-                "65,"  # BOLUS_REQUESTED_MSG2 (bolus calculator: target BG, ISF)
-                "66,"  # BOLUS_REQUESTED_MSG3 (bolus calculator: food/correction/total)
-                "61,"  # CANNULA_FILLED (site change)
-                "63,"  # TUBING_FILLED
-                "81,"  # DAILY_BASAL (battery %, voltage, daily totals)
-                "90,"  # NEW_DAY (commanded basal rate, features bitmask)
-                "140,"  # PLGS_PERIODIC (predicted glucose value)
-                "229,"  # AA_USER_MODE_CHANGE (sleep/exercise)
-                "230,"  # AA_PCM_CHANGE (Control-IQ mode)
-                "256,"  # CGM_DATA_GXB (glucose readings)
-                "279,"  # BASAL_DELIVERY (commanded rates)
-                "280,"  # BOLUS_DELIVERY (bolus details)
-                "313,"  # AA_DAILY_STATUS (CGM sensor type, user mode)
-                "372,"  # CGM_DATA_FSL2 (Libre 2 glucose readings)
-                "399"  # CGM_DATA_G7 (Dexcom G7 glucose readings)
-            )
+            for window_start, window_end in self._pump_log_windows(start_date, end_date):
+                params = {
+                    "pumperId": self.pumper_id,
+                    "startDate": f"{window_start}T00:00:00Z",
+                    "endDate": f"{window_end}T23:59:59Z",
+                }
+                url = f"{self.urls['SOURCE_URL']}api/reports/bff/pump-logs/{device_id}?{urlencode(params)}"
+                _LOGGER.debug("Tandem: Fetching pump-logs %s → %s", window_start, window_end)
 
-            url = (
-                f"{self.urls['SOURCE_URL']}api/reports/reportsfacade/"
-                f"pumpevents/{user_id}/{device_id}"
-                f"?minDate={start_date}&maxDate={end_date}"
-                f"&eventIds={event_ids}"
-            )
+                response = await self._api_get(url)
+                if not isinstance(response, dict):
+                    _LOGGER.warning("Tandem: Unexpected pump-logs response type: %s", type(response).__name__)
+                    continue
+
+                raw_events = response.get("events") or []
+                raw_event_count += len(raw_events)
+                for raw in raw_events:
+                    key = (raw.get("sequenceGroup"), raw.get("sequenceNumber"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    mapped = map_pump_log_event(raw)
+                    if mapped is not None:
+                        events.append(mapped)
 
             _LOGGER.debug(
-                "Tandem: Fetching pump events: minDate=%s, maxDate=%s",
-                start_date,
-                end_date,
+                "Tandem: Mapped %d/%d pump-logs events (types we consume)",
+                len(events),
+                raw_event_count,
             )
-            _LOGGER.debug("Tandem: Pump events URL: %s", url)
-
-            # The pumpevents endpoint returns base64-encoded binary,
-            # wrapped in a JSON string. Use _api_get which calls resp.json()
-            # to unwrap the JSON string layer, then decode the binary.
-            raw_response = await self._api_get(url)
-
-            if not raw_response:
-                _LOGGER.warning("Tandem: Pump events API returned no data")
-                return None
-
-            if isinstance(raw_response, str):
-                # Base64-encoded binary wrapped in JSON string
-                events = decode_pump_events(raw_response)
-                _LOGGER.debug(
-                    "Tandem: Decoded %d pump events from binary data",
-                    len(events),
-                )
-                return events if events else None
-            elif isinstance(raw_response, list):
-                # Already decoded (unlikely but handle gracefully)
-                _LOGGER.debug(
-                    "Tandem: Pump events returned as list (%d items)",
-                    len(raw_response),
-                )
-                return raw_response
-            else:
-                _LOGGER.warning(
-                    "Tandem: Unexpected pump events response type: %s",
-                    type(raw_response),
-                )
-                return None
+            return events if events else None
 
         except (TandemApiError, httpx.HTTPError) as e:
             _LOGGER.error("Pump events API failed: %s", e, exc_info=True)
@@ -950,7 +1296,7 @@ class TandemSourceClient:
         self,
         pump_timezone: str | None = None,
         fallback_date: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Fetch all available recent data from Tandem Source APIs.
 
         Parallelises independent API calls where possible.
@@ -983,7 +1329,7 @@ class TandemSourceClient:
         now_pump = datetime.now(tz)
         week_ago_pump = now_pump - timedelta(days=7)
 
-        data: dict = {
+        data: dict[str, Any] = {
             "pump_metadata": None,
             "pumper_info": None,
             "pump_events": None,
@@ -992,6 +1338,10 @@ class TandemSourceClient:
         }
 
         # ── Phase 1: metadata + pumper_info in parallel ──────────────
+        # Pre-declare the unpack targets: mypy cannot infer the tuple element
+        # types through asyncio.gather(return_exceptions=True) unpacking.
+        metadata_result: dict[str, Any] | None | BaseException
+        pumper_result: dict[str, Any] | None | BaseException
         metadata_result, pumper_result = await asyncio.gather(
             self._fetch_pump_metadata(),
             self._fetch_pumper_info(),
@@ -1062,6 +1412,8 @@ class TandemSourceClient:
                 tz,
             )
 
+            timeline_result: dict[str, Any] | None | BaseException
+            summary_result: dict[str, Any] | None | BaseException
             timeline_result, summary_result = await asyncio.gather(
                 self.get_therapy_timeline(start_mm, end_mm),
                 self.get_dashboard_summary(start_mm, end_mm),
@@ -1086,7 +1438,7 @@ class TandemSourceClient:
 
         return data
 
-    async def _fetch_pump_metadata(self) -> dict | None:
+    async def _fetch_pump_metadata(self) -> dict[str, Any] | None:
         """Fetch and extract first pump metadata entry."""
         metadata_list = await self.get_pump_event_metadata()
         if isinstance(metadata_list, list) and metadata_list:
@@ -1095,18 +1447,24 @@ class TandemSourceClient:
             return metadata_list
         return None
 
-    async def _fetch_pumper_info(self) -> dict | None:
+    async def _fetch_pumper_info(self) -> dict[str, Any] | None:
         """Fetch pumper info."""
         return await self.get_pumper_info()
 
-    async def close(self):
-        """Close the HTTP client."""
+    async def close(self) -> None:
+        """Close the HTTP client we own.
+
+        A no-op when the client was injected by Home Assistant — closing the
+        shared managed client would break every other consumer of it.
+        """
+        if not self._owns_client:
+            return
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
 
 
-def parse_dotnet_date(date_str) -> datetime | None:
+def parse_dotnet_date(date_str: str) -> datetime | None:
     """Parse .NET /Date(epoch_ms)/ or /Date(epoch_ms+offset)/ format.
 
     Also handles plain ISO 8601 date strings and epoch integers.

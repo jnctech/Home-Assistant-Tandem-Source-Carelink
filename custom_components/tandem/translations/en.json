@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up your Tandem Source account",
+        "description": "Enter your Tandem Diabetes Source credentials. This connects to source.tandemdiabetes.com (US) or source.eu.tandemdiabetes.com (EU) to fetch data from your Tandem t:slim X2 pump.",
+        "data": {
+          "tandem_email": "Email address",
+          "tandem_password": "Password",
+          "tandem_region": "Region",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "Your Tandem Source credentials have expired or are invalid. Please re-enter them to continue.",
+        "data": {
+          "tandem_email": "Email address",
+          "tandem_password": "Password",
+          "tandem_region": "Region",
+          "scan_interval": "Scan interval (seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure integration",
+        "description": "Update your integration settings. Authentication credentials are preserved from the original setup.",
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "reauth_successful": "Re-authentication was successful",
+      "reconfigure_successful": "Re-configuration was successful"
+    }
+  }
+}

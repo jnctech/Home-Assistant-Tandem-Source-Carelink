@@ -1,3 +1,8 @@
+# The repo targets Python 3.13 (manifest / ruff target-version = py313; HA 2026.2
+# and bandit do not run on 3.14). Pin hook envs to 3.13 so local == CI.
+default_language_version:
+  python: python3.13
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

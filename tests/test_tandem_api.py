@@ -8,10 +8,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from custom_components.carelink.tandem_api import (
+from custom_components.tandem.tandem_api import (
+    EVT_AA_DAILY_STATUS,
+    EVT_BOLUS_REQUESTED_MSG1,
+    EVT_BOLUS_REQUESTED_MSG2,
+    EVT_BOLUS_REQUESTED_MSG3,
+    EVT_DAILY_BASAL,
     TandemSourceClient,
     TandemAuthError,
     TandemApiError,
+    map_pump_log_event,
     parse_dotnet_date,
 )
 
@@ -184,6 +190,36 @@ class TestTandemSourceClientClose:
         """Test closing when no client was created."""
         client = TandemSourceClient("user@test.com", "pass")
         await client.close()  # Should not raise
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TandemSourceClient injected (Home Assistant managed) session
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestTandemSourceClientInjectedSession:
+    """An injected session is reused verbatim and never closed by us."""
+
+    async def test_get_client_returns_injected_session(self):
+        """_get_client returns the injected client without building its own."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        assert client._owns_client is False
+        assert await client._get_client() is injected
+
+    async def test_close_does_not_close_injected_session(self):
+        """close() must not aclose a Home-Assistant-owned shared client."""
+        injected = AsyncMock(spec=httpx.AsyncClient)
+        injected.is_closed = False
+        client = TandemSourceClient("user@test.com", "pass", session=injected)
+
+        await client.close()
+
+        injected.aclose.assert_not_called()
+        # The injected reference is retained (not nulled) so the client stays usable.
+        assert client._client is injected
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -625,6 +661,46 @@ class TestLoginErrors:
         with pytest.raises(TandemAuthError, match="Token exchange HTTP 400"):
             await client.login()
 
+    async def test_login_authorize_follows_redirects(self):
+        """Regression: the OAuth authorize GET must set follow_redirects=True.
+
+        The authorization code is delivered via a 302 to …/callback?code=….
+        When Home Assistant injects its shared client (get_async_client), that
+        client defaults to follow_redirects=False, so without an explicit
+        per-request override the code is never read and login fails with
+        `invalid_auth` in HA while passing here (the mock pre-sets .url). Guard
+        the override so the live regression cannot silently return.
+        """
+        client = TandemSourceClient("user@test.com", "pass")
+
+        mock_login_page = MagicMock()
+        mock_login_page.status_code = 200
+
+        mock_login_resp = MagicMock()
+        mock_login_resp.status_code = 200
+        mock_login_resp.json.return_value = {"status": "SUCCESS"}
+
+        mock_auth_resp = MagicMock()
+        mock_auth_resp.url = "https://example.com/callback?code=test_auth_code"
+
+        # Stop the flow at token exchange — we only assert the authorize call.
+        mock_token_resp = MagicMock()
+        mock_token_resp.status_code = 400
+        mock_token_resp.text = "stop here"
+
+        mock_http = AsyncMock()
+        mock_http.get = AsyncMock(side_effect=[mock_login_page, mock_auth_resp])
+        mock_http.post = AsyncMock(side_effect=[mock_login_resp, mock_token_resp])
+        mock_http.is_closed = False
+        client._client = mock_http
+
+        with pytest.raises(TandemAuthError):
+            await client.login()
+
+        # The authorize request is the 2nd GET (after the login page).
+        authorize_call = mock_http.get.call_args_list[1]
+        assert authorize_call.kwargs.get("follow_redirects") is True
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # _api_get retry on transient errors (lines 539, 560)
@@ -709,3 +785,134 @@ class TestGetPumperInfo:
         mock_get.assert_called_once()
         call_url = mock_get.call_args[0][0]
         assert "pump-abc" in call_url
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# map_pump_log_event — BFF JSON → legacy decoded-event dict
+# ═══════════════════════════════════════════════════════════════════════════
+class TestMapPumpLogEventBolusCalculator:
+    """Bolus-calculator events 64/65/66 map to the coordinator's join contract."""
+
+    def _event(self, code, props):
+        return {
+            "eventCode": code,
+            "pumpDateTime": "2026-09-06T13:04:00",
+            "sequenceNumber": 7,
+            "eventProperties": props,
+        }
+
+    def test_msg1_bg_carbs_iob(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG1,
+                {
+                    "bolusId": 42,
+                    "bg": 145,
+                    "iob": 1.5,
+                    "carbAmount": 30,
+                    "carbRatio": 8000,
+                    "bolusType": [4],
+                    "correctionBolusIncluded": 1,
+                },
+            )
+        )
+        assert evt is not None
+        assert evt["event_id"] == EVT_BOLUS_REQUESTED_MSG1
+        assert evt["event_name"] == "BolusRequestedMsg1"
+        assert evt["bolus_id"] == 42
+        assert evt["bg_mgdl"] == 145
+        assert evt["iob"] == 1.5
+        assert evt["carb_amount"] == 30
+        assert evt["carb_ratio"] == 8.0  # 8000 fixed-point / 1000
+        assert evt["bolus_type"] == 16  # bitmask [4] → 1<<4
+        assert evt["correction_included"] is True
+        assert evt["timestamp"].tzinfo is None  # naive pump-local
+
+    def test_msg1_missing_fields_are_none(self):
+        evt = map_pump_log_event(self._event(EVT_BOLUS_REQUESTED_MSG1, {"bolusId": 1}))
+        assert evt is not None
+        assert evt["bg_mgdl"] is None
+        assert evt["carb_amount"] is None
+        assert evt["carb_ratio"] is None  # non-numeric carbRatio → None, not a crash
+
+    def test_msg2_targets(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG2,
+                {
+                    "bolusId": 42,
+                    "standardPercent": 100,
+                    "targetBg": 110,
+                    "isf": 45,
+                    "duration": 0,
+                    "declinedCorrection": 0,
+                    "userOverride": 1,
+                },
+            )
+        )
+        assert evt["event_name"] == "BolusRequestedMsg2"
+        assert evt["bolus_id"] == 42
+        assert evt["target_bg"] == 110
+        assert evt["isf"] == 45
+        assert evt["duration_minutes"] == 0
+        assert evt["declined_correction"] is False
+        assert evt["user_override"] is True
+
+    def test_msg3_split_sizes(self):
+        evt = map_pump_log_event(
+            self._event(
+                EVT_BOLUS_REQUESTED_MSG3,
+                {
+                    "bolusId": 42,
+                    "foodBolusSize": 7.63,
+                    "correctionBolusSize": 0.0,
+                    "totalBolusSize": 7.63,
+                },
+            )
+        )
+        assert evt["event_name"] == "BolusRequestedMsg3"
+        assert evt["bolus_id"] == 42
+        assert evt["food_bolus_size"] == 7.63
+        assert evt["correction_bolus_size"] == 0.0
+        assert evt["total_bolus_size"] == 7.63
+
+
+class TestMapPumpLogEventDailyStatus:
+    """AA daily status (313) supplies the CGM sensor type."""
+
+    def _event(self, props):
+        return {
+            "eventCode": EVT_AA_DAILY_STATUS,
+            "pumpDateTime": "2026-09-06T00:00:00",
+            "sequenceNumber": 1,
+            "eventProperties": props,
+        }
+
+    def test_sensor_type_g7(self):
+        evt = map_pump_log_event(self._event({"sensorType": 3, "usermode": 0, "pumpControlState": 2}))
+        assert evt["event_name"] == "AADailyStatus"
+        assert evt["sensor_type_id"] == 3
+        assert evt["sensor_type"] == "G7"
+        assert evt["user_mode"] == 0
+        assert evt["pump_control_state"] == 2
+
+    def test_sensor_type_unknown_code(self):
+        evt = map_pump_log_event(self._event({"sensorType": 9}))
+        assert evt["sensor_type"] == "Unknown (9)"
+
+
+class TestMapPumpLogEventBoundaries:
+    """Events still unmapped return None; malformed input returns None."""
+
+    def test_unmapped_event_returns_none(self):
+        # Daily basal (81) is deliberately not yet mapped (battery follow-up).
+        evt = map_pump_log_event(
+            {"eventCode": EVT_DAILY_BASAL, "pumpDateTime": "2026-09-06T00:00:00", "eventProperties": {}}
+        )
+        assert evt is None
+
+    def test_missing_datetime_returns_none(self):
+        assert map_pump_log_event({"eventCode": EVT_BOLUS_REQUESTED_MSG1, "eventProperties": {}}) is None
+
+    def test_missing_event_code_returns_none(self):
+        assert map_pump_log_event({"pumpDateTime": "2026-09-06T00:00:00"}) is None

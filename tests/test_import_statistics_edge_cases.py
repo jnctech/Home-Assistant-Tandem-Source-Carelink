@@ -2,83 +2,18 @@
 
 from __future__ import annotations
 
-import sys
-import types
-from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
-import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import DOMAIN, PLATFORM_TANDEM, PLATFORM_TYPE, TANDEM_CLIENT
+from custom_components.tandem.const import DOMAIN
 
-
-# -- Mock stat data classes ------------------------------------------------
-
-
-@dataclass
-class _MockStatisticData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticData."""
-
-    start: Any = None
-    mean: Any = None
-    min: Any = None
-    max: Any = None
-    state: Any = None
-    sum: Any = None
-
-
-@dataclass
-class _MockStatisticMetaData:
-    """Lightweight stand-in for homeassistant.components.recorder.models.StatisticMetaData."""
-
-    has_mean: bool = True
-    has_sum: bool = False
-    name: str = ""
-    source: str = ""
-    statistic_id: str = ""
-    unit_of_measurement: str = ""
-
-
-# -- Fixture ---------------------------------------------------------------
-
-
-@pytest.fixture
-def mock_import():
-    """Install fake recorder modules and yield the mock async_import_statistics.
-
-    Automatically restores original sys.modules on teardown.
-    """
-    mock_fn = MagicMock()
-
-    recorder_mod = types.ModuleType("homeassistant.components.recorder")
-    stats_mod = types.ModuleType("homeassistant.components.recorder.statistics")
-    models_mod = types.ModuleType("homeassistant.components.recorder.models")
-
-    stats_mod.async_import_statistics = mock_fn
-    models_mod.StatisticData = _MockStatisticData
-    models_mod.StatisticMetaData = _MockStatisticMetaData
-
-    keys = [
-        "homeassistant.components.recorder",
-        "homeassistant.components.recorder.statistics",
-        "homeassistant.components.recorder.models",
-    ]
-    saved = {k: sys.modules.get(k) for k in keys}
-    sys.modules["homeassistant.components.recorder"] = recorder_mod
-    sys.modules["homeassistant.components.recorder.statistics"] = stats_mod
-    sys.modules["homeassistant.components.recorder.models"] = models_mod
-
-    yield mock_fn
-
-    for k in keys:
-        if saved[k] is None:
-            sys.modules.pop(k, None)
-        else:
-            sys.modules[k] = saved[k]
+# The ``mock_import`` fixture (shared, in conftest.py) patches the real recorder
+# ``async_import_statistics`` and keeps HA's real StatisticMetaData/StatisticData
+# in play, so captured calls carry real dicts — assert with subscript access.
 
 
 # -- Helpers ---------------------------------------------------------------
@@ -88,7 +23,7 @@ _BASE_TS = datetime(2026, 3, 1, 12, 0, 0)
 
 async def _make_coordinator(hass: HomeAssistant):
     """Create a minimal TandemCoordinator wired to hass (no network calls)."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -101,6 +36,7 @@ async def _make_coordinator(hass: HomeAssistant):
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -121,12 +57,7 @@ async def _make_coordinator(hass: HomeAssistant):
     mock_client.get_pump_event_metadata = AsyncMock(return_value=[{"maxDateWithEvents": "2026-03-01T12:00:00"}])
     mock_client.close = AsyncMock()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
     await coordinator.async_config_entry_first_refresh()
     return coordinator
 
@@ -183,7 +114,7 @@ class TestZeroAndNoneValueGuards:
         ]
         await coordinator._import_statistics(events)
 
-        stat_ids = {c[0][1].statistic_id for c in mock_import.call_args_list}
+        stat_ids = {c[0][1]["statistic_id"] for c in mock_import.call_args_list}
         assert f"sensor.{DOMAIN}_active_insulin_iob" not in stat_ids
         assert f"sensor.{DOMAIN}_total_bolus" in stat_ids
 
@@ -233,8 +164,8 @@ class TestCorrectionBolusStatistic:
             }
         ]
         await coordinator._import_statistics(events)
-        stat_ids = {c[0][1].statistic_id for c in mock_import.call_args_list}
-        assert "sensor.carelink_correction_bolus" in stat_ids
+        stat_ids = {c[0][1]["statistic_id"] for c in mock_import.call_args_list}
+        assert "sensor.tandem_correction_bolus" in stat_ids
 
     async def test_correction_bolus_nonzero_delivery_status_skipped(self, hass: HomeAssistant, mock_import):
         """Event 280 with delivery_status != 0 (not completed) does not generate a stat."""

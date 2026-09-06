@@ -39,7 +39,7 @@ Serial, firmware, last sync, last glucose update, CGM usage
 
 **Long-Term Statistics (6)**
 CGM, IOB, basal, carbs, correction bolus — works with the Statistics Graph card.
-Backfill months of data: **Developer Tools → Actions → carelink.import_history**
+Backfill months of data: **Developer Tools → Actions → tandem.import_history**
 
 **Example Dashboard**
 A quick-start dashboard is included in `examples/` — early mock-up, future releases will
@@ -72,7 +72,7 @@ The Tandem app uploads roughly once per hour when running unrestricted.
 
 1. HACS → Custom repositories → add `https://github.com/jnctech/ha-tandem-pump` (category: Integration)
 2. Install **Tandem t:slim Pump** → restart HA
-3. **Settings → Devices & Services → Add Integration → search "Carelink"**
+3. **Settings → Devices & Services → Add Integration → search "Tandem t:slim"**
 
 ---
 
@@ -80,7 +80,7 @@ The Tandem app uploads roughly once per hour when running unrestricted.
 
 Entity IDs now include a `tandem_` prefix (e.g. `sensor.tandem_last_glucose_level_mmol`).
 Update dashboards and automations after upgrading.
-Statistics Graph entities (`sensor.carelink_*`) are **not** affected.
+Statistics Graph entities (`sensor.tandem_*`) are **not** affected.
 
 ---
 
@@ -100,8 +100,3 @@ AI is used as a tool. The engineering standards are not negotiable.
 
 Have questions, ideas, or want to contribute? [Open an issue](https://github.com/jnctech/ha-tandem-pump/issues) or
 [start a discussion](https://github.com/jnctech/ha-tandem-pump/discussions) — feedback from the community helps shape this project.
-
----
-
-> **Medtronic CareLink:** This integration also supports legacy Medtronic CareLink (limited sensors).
-> Use your CareLink credentials when adding the integration.

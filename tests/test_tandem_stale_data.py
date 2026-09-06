@@ -7,26 +7,23 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.carelink.const import (
+from custom_components.tandem.const import (
     DOMAIN,
-    TANDEM_CLIENT,
-    PLATFORM_TYPE,
-    PLATFORM_TANDEM,
-    PLATFORM_CARELINK,
     TANDEM_DATA_STALE_TIMEDELTA,
-    TANDEM_SENSORS_ALWAYS_AVAILABLE,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
     TANDEM_SENSOR_KEY_BASAL_RATE,
     TANDEM_SENSOR_KEY_ACTIVE_INSULIN,
     DEVICE_PUMP_SERIAL,
 )
-from custom_components.carelink.helpers import is_data_stale
-from custom_components.carelink.sensor import CarelinkSensorEntity
+from custom_components.tandem.helpers import is_data_stale
+from custom_components.tandem.sensor import TandemSensor
+from custom_components.tandem.sensor_types import TANDEM_SENSORS_ALWAYS_AVAILABLE
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -55,7 +52,7 @@ class TestIsDataStale:
         data = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: STATE_UNAVAILABLE}
         assert is_data_stale(data) is True
 
-    @patch("custom_components.carelink.helpers.dt_util")
+    @patch("custom_components.tandem.helpers.dt_util")
     def test_stale_when_old_timestamp(self, mock_dt_util):
         """Data older than threshold should be stale."""
         now = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
@@ -66,7 +63,7 @@ class TestIsDataStale:
         data = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: old_time}
         assert is_data_stale(data) is True
 
-    @patch("custom_components.carelink.helpers.dt_util")
+    @patch("custom_components.tandem.helpers.dt_util")
     def test_fresh_when_recent_timestamp(self, mock_dt_util):
         """Data within threshold should not be stale."""
         now = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
@@ -77,7 +74,7 @@ class TestIsDataStale:
         data = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: recent_time}
         assert is_data_stale(data) is False
 
-    @patch("custom_components.carelink.helpers.dt_util")
+    @patch("custom_components.tandem.helpers.dt_util")
     def test_stale_at_exact_threshold(self, mock_dt_util):
         """Data exactly at the threshold should be stale (>= comparison)."""
         now = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
@@ -87,7 +84,7 @@ class TestIsDataStale:
         data = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: boundary_time}
         assert is_data_stale(data) is True
 
-    @patch("custom_components.carelink.helpers.dt_util")
+    @patch("custom_components.tandem.helpers.dt_util")
     def test_fresh_just_before_threshold(self, mock_dt_util):
         """Data 1 second before threshold should not be stale."""
         now = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
@@ -97,7 +94,7 @@ class TestIsDataStale:
         data = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: just_before}
         assert is_data_stale(data) is False
 
-    @patch("custom_components.carelink.helpers.dt_util")
+    @patch("custom_components.tandem.helpers.dt_util")
     def test_handles_naive_timestamp(self, mock_dt_util):
         """Naive (no timezone) timestamps should be handled gracefully."""
         now = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
@@ -115,92 +112,106 @@ class TestIsDataStale:
 
 
 class TestSensorAvailability:
-    """Tests for sensor available property with staleness checks."""
+    """Tests for TandemEntity.available — fail-visible staleness (safety).
 
-    def _make_sensor(
-        self,
-        sensor_key: str,
-        platform_type: str = PLATFORM_TANDEM,
-        coordinator_data: dict | None = None,
-    ) -> CarelinkSensorEntity:
-        """Create a sensor entity with mocked coordinator."""
+    Decision-input sensors (glucose, basal, IOB) go UNAVAILABLE when the pump
+    upload is stale, so HA never serves a stale reading as if it were current
+    (STANDARD-stable-anchor-reconciliation, relayed — a silently-dead
+    decision-input entity is a safety event). Timestamp/diagnostic sensors stay
+    available so the user can see WHEN data last arrived. This reverses the
+    prior "diagnostic mode" that showed stale values as if live.
+    """
+
+    def _make_sensor(self, sensor_key: str, coordinator_data: dict | None = None) -> TandemSensor:
+        """Create a TandemSensor with a mocked coordinator."""
         from homeassistant.components.sensor import SensorEntityDescription
 
         coordinator = MagicMock()
-        coordinator.data = coordinator_data or {}
+        coordinator.data = coordinator_data if coordinator_data is not None else {}
         # CoordinatorEntity.available checks coordinator.last_update_success
         coordinator.last_update_success = True
 
-        description = SensorEntityDescription(
-            key=sensor_key,
-            name=f"Test {sensor_key}",
-        )
+        description = SensorEntityDescription(key=sensor_key, name=f"Test {sensor_key}")
+        return TandemSensor(coordinator, description)
 
-        entity = CarelinkSensorEntity(
-            coordinator=coordinator,
-            sensor_description=description,
-            platform_type=platform_type,
-        )
-        return entity
+    @staticmethod
+    def _fresh() -> dict:
+        """Coordinator data with a just-now CGM timestamp (not stale)."""
+        return {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: datetime.now(timezone.utc)}
 
-    # DIAGNOSTIC MODE: staleness check is bypassed in sensor.available so that
-    # sensors always show their last known value.  Stale detection still runs
-    # inside the coordinator and is reported in the HA log as stale_check=True.
-    # These tests document the diagnostic-mode expectation; revert when the
-    # staleness check is re-enabled in sensor.py.
+    def test_glucose_unavailable_when_stale(self):
+        """A stale glucose sensor must go unavailable, not show a stale value."""
+        entity = self._make_sensor(TANDEM_SENSOR_KEY_LASTSG_MMOL)  # empty data -> stale
+        assert entity.available is False
 
-    def test_tandem_glucose_shows_last_value_when_stale(self):
-        """DIAG: glucose sensor stays available (shows last value) even when stale."""
-        entity = self._make_sensor(TANDEM_SENSOR_KEY_LASTSG_MMOL)
+    def test_glucose_available_when_fresh(self):
+        """Glucose sensor is available when the last reading is recent."""
+        entity = self._make_sensor(TANDEM_SENSOR_KEY_LASTSG_MMOL, self._fresh())
         assert entity.available is True
 
-    def test_tandem_glucose_available_when_fresh(self):
-        """Tandem glucose sensor is available when coordinator is healthy."""
-        entity = self._make_sensor(TANDEM_SENSOR_KEY_LASTSG_MMOL)
-        assert entity.available is True
-
-    def test_tandem_basal_shows_last_value_when_stale(self):
-        """DIAG: basal rate sensor stays available (shows last value) even when stale."""
+    def test_basal_unavailable_when_stale(self):
+        """A stale basal-rate sensor must go unavailable."""
         entity = self._make_sensor(TANDEM_SENSOR_KEY_BASAL_RATE)
-        assert entity.available is True
+        assert entity.available is False
 
-    def test_tandem_iob_shows_last_value_when_stale(self):
-        """DIAG: IOB sensor stays available (shows last value) even when stale."""
+    def test_iob_unavailable_when_stale(self):
+        """A stale IOB sensor must go unavailable."""
         entity = self._make_sensor(TANDEM_SENSOR_KEY_ACTIVE_INSULIN)
-        assert entity.available is True
+        assert entity.available is False
 
-    def test_always_available_sensors_stay_available(self):
-        """Timestamp/diagnostic sensors should stay available (via coordinator health)."""
+    def test_decision_inputs_available_when_fresh(self):
+        """Decision-input sensors are available when data is fresh."""
+        for key in (TANDEM_SENSOR_KEY_BASAL_RATE, TANDEM_SENSOR_KEY_ACTIVE_INSULIN):
+            entity = self._make_sensor(key, self._fresh())
+            assert entity.available is True, f"{key} should be available when fresh"
+
+    def test_always_available_sensors_stay_available_when_stale(self):
+        """Timestamp/diagnostic sensors stay available even when data is stale."""
         for sensor_key in TANDEM_SENSORS_ALWAYS_AVAILABLE:
-            entity = self._make_sensor(sensor_key)
+            entity = self._make_sensor(sensor_key)  # empty/stale data
             assert entity.available is True, f"Sensor {sensor_key} should remain available"
 
-    def test_carelink_sensors_unaffected_by_staleness(self):
-        """Carelink (Medtronic) sensors should always be available."""
-        entity = self._make_sensor(
-            TANDEM_SENSOR_KEY_LASTSG_MMOL,
-            platform_type=PLATFORM_CARELINK,
-        )
+    def test_unavailable_when_coordinator_not_connected(self):
+        """Sensor unavailable when the coordinator itself reports failure."""
+        entity = self._make_sensor(TANDEM_SENSOR_KEY_LASTSG_MMOL, self._fresh())
+        entity.coordinator.last_update_success = False
+        assert entity.available is False
+
+
+class TestDataStaleBinarySensor:
+    """Tests for the 'Data stale' health-surface binary sensor.
+
+    This is the stable-anchor rule-3 named visibility surface: it must report
+    staleness AND stay available even when the data-bearing sensors have gone
+    unavailable — otherwise the health indicator would silently hide itself.
+    """
+
+    def _make(self, coordinator_data: dict | None = None, last_update_success: bool = True):
+        from custom_components.tandem.binary_sensor import TandemDataStaleBinarySensor
+
+        coordinator = MagicMock()
+        coordinator.data = coordinator_data if coordinator_data is not None else {}
+        coordinator.last_update_success = last_update_success
+        return TandemDataStaleBinarySensor(coordinator)
+
+    def test_on_when_stale(self):
+        """is_on True when data is stale (empty/old)."""
+        assert self._make().is_on is True
+
+    def test_off_when_fresh(self):
+        """is_on False when the last reading is recent."""
+        fresh = {TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP: datetime.now(timezone.utc)}
+        assert self._make(fresh).is_on is False
+
+    def test_available_even_when_stale(self):
+        """The health surface stays available while stale (must not self-hide)."""
+        entity = self._make()  # stale
+        assert entity.is_on is True
         assert entity.available is True
 
-    def test_unavailable_when_coordinator_not_connected(self):
-        """Sensor unavailable when coordinator itself reports failure."""
-        coordinator = MagicMock()
-        coordinator.data = {}
-        coordinator.last_update_success = False
-
-        from homeassistant.components.sensor import SensorEntityDescription
-
-        description = SensorEntityDescription(
-            key=TANDEM_SENSOR_KEY_LASTSG_MMOL,
-            name="Test",
-        )
-        entity = CarelinkSensorEntity(
-            coordinator=coordinator,
-            sensor_description=description,
-            platform_type=PLATFORM_TANDEM,
-        )
-        assert entity.available is False
+    def test_unavailable_when_coordinator_failed(self):
+        """Only a coordinator failure takes the health surface offline."""
+        assert self._make(last_update_success=False).available is False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -215,7 +226,7 @@ async def _setup_coordinator_for_stale_test(
     recent_data_return: dict | None = None,
 ) -> tuple:
     """Set up a TandemCoordinator with configurable metadata responses."""
-    from custom_components.carelink import TandemCoordinator
+    from custom_components.tandem import TandemCoordinator
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -229,6 +240,7 @@ async def _setup_coordinator_for_stale_test(
         },
     )
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
 
     mock_client = AsyncMock()
     mock_client.login = AsyncMock(return_value=True)
@@ -246,12 +258,7 @@ async def _setup_coordinator_for_stale_test(
     else:
         mock_client.get_recent_data = AsyncMock(return_value=_default_recent_data())
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        TANDEM_CLIENT: mock_client,
-        PLATFORM_TYPE: PLATFORM_TANDEM,
-    }
-
-    coordinator = TandemCoordinator(hass, entry, update_interval=timedelta(seconds=300))
+    coordinator = TandemCoordinator(hass, entry, mock_client, update_interval=timedelta(seconds=300))
 
     return coordinator, mock_client
 
