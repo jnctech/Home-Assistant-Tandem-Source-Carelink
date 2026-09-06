@@ -501,6 +501,13 @@ _SUSPEND_REASON_MAP: dict[Any, str] = {0: "User", 1: "Alarm", 2: "Malfunction", 
 _USER_MODE_MAP: dict[Any, str] = {0: "Normal", 1: "Sleep", 2: "Exercise", 3: "Eating Soon"}
 _PCM_MAP: dict[Any, str] = {0: "No Control", 1: "Open Loop", 2: "Pining", 3: "Closed Loop"}
 _BG_ENTRY_TYPE_MAP: dict[Any, str] = {0: "Manual", 1: "Dexcom EGV"}
+_CGM_SENSOR_TYPE_MAP: dict[Any, str] = {0: "No CGM", 1: "G6", 2: "Libre 2", 3: "G7"}
+
+
+def _as_bool(value: Any) -> Any:
+    """Coerce a BFF flag to bool, preserving None (absent → None, not False)."""
+    return bool(value) if value is not None else None
+
 
 # CGM event codes that share the GXB eventProperties layout (G6, FSL2, G7).
 _CGM_EVENT_IDS = (EVT_CGM_DATA_GXB, EVT_CGM_DATA_FSL2, EVT_CGM_DATA_G7)
@@ -561,12 +568,12 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
     ``timestamp`` naive-local, ``event_name`` + per-type payload fields), or
     ``None`` for event types the coordinator does not consume from this path.
 
-    NOTE (staged): only the core event types are mapped here. Secondary events
-    the v2 coordinator also decodes (battery/status 9/34/35/53, alerts 4/5/6/26/27/28,
-    USB 36/37, daily basal 81, new day 90, PLGS 140, AA daily 313, bolus-calculator
-    64/65/66, CGM session 212/213/214) are not yet mapped and their sensors will
-    read unavailable (null-not-guess) until added. Live eventProperties keys for
-    all of them are recorded in .remember/BFF-LIVE-VALIDATION-2026-09-06.md.
+    NOTE (staged): core event types plus the bolus-calculator (64/65/66) and
+    Control-IQ daily status (313, CGM sensor type) are mapped. Still unmapped —
+    their sensors read unavailable (null-not-guess) until added: battery/status
+    (9/34/35/53), alerts/alarms (4/5/6/26/27/28), USB charging (36/37), daily
+    basal (81), new day (90), PLGS (140), CGM session (212/213/214). Live
+    eventProperties keys are recorded in .remember/BFF-LIVE-VALIDATION-2026-09-06.md.
     """
     event_id = event.get("eventCode")
     ts = _parse_pump_datetime(event.get("pumpDateTime"))
@@ -675,6 +682,48 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
         previous = g("previouspcm")
         evt["current_pcm"] = _PCM_MAP.get(current, f"PCM_{current}")
         evt["previous_pcm"] = _PCM_MAP.get(previous, f"PCM_{previous}")
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG1:
+        # Bolus calculator message 1 — carbs/BG/IOB at request time. Joined with
+        # msg2/msg3 by bolus_id in the coordinator to build the last-bolus detail.
+        evt["event_name"] = "BolusRequestedMsg1"
+        evt["bolus_id"] = g("bolusid")
+        evt["bg_mgdl"] = g("bg")
+        evt["iob"] = _round(g("iob"), 2)
+        evt["carb_amount"] = g("carbamount")
+        carb_ratio = g("carbratio")
+        # Carb ratio is fixed-point g/u * 1000 (matches the binary decoder).
+        evt["carb_ratio"] = round(carb_ratio / 1000.0, 1) if isinstance(carb_ratio, (int, float)) else None
+        evt["bolus_type"] = _bitmask_to_int(g("bolustype"))
+        evt["correction_included"] = _as_bool(g("correctionbolusincluded"))
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG2:
+        evt["event_name"] = "BolusRequestedMsg2"
+        evt["bolus_id"] = g("bolusid")
+        evt["standard_percent"] = g("standardpercent")
+        evt["target_bg"] = g("targetbg")
+        evt["isf"] = g("isf")
+        evt["duration_minutes"] = g("duration")
+        evt["declined_correction"] = _as_bool(g("declinedcorrection"))
+        evt["user_override"] = _as_bool(g("useroverride"))
+
+    elif event_id == EVT_BOLUS_REQUESTED_MSG3:
+        # Bolus calculator message 3 — the delivered split. Carries the msg3
+        # timestamp the coordinator uses to pick the latest complete record.
+        evt["event_name"] = "BolusRequestedMsg3"
+        evt["bolus_id"] = g("bolusid")
+        evt["food_bolus_size"] = _round(g("foodbolussize"), 2)
+        evt["correction_bolus_size"] = _round(g("correctionbolussize"), 2)
+        evt["total_bolus_size"] = _round(g("totalbolussize"), 2)
+
+    elif event_id == EVT_AA_DAILY_STATUS:
+        # Control-IQ daily status — carries the active CGM sensor type.
+        evt["event_name"] = "AADailyStatus"
+        sensor_type = g("sensortype")
+        evt["sensor_type_id"] = sensor_type
+        evt["sensor_type"] = _CGM_SENSOR_TYPE_MAP.get(sensor_type, f"Unknown ({sensor_type})")
+        evt["user_mode"] = g("usermode")
+        evt["pump_control_state"] = g("pumpcontrolstate")
 
     else:
         return None
