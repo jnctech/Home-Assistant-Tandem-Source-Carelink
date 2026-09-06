@@ -1437,8 +1437,10 @@ class TandemCoordinator(DataUpdateCoordinator):
         """Extract pump settings from metadata.lastUpload.settings.
 
         The lastUpload field is a dict: {uploadId, lastUploadedAt, settings}.
-        settings contains profiles, controlIQSettings, pumpSettings,
-        alertsAndReminders, cgmSettings, etc.
+        The Tandem Source BFF migration (~2026-06) renamed several settings
+        sub-blocks; the current shape is: profiles, controlIqSettings,
+        pumpSettings, globalMaxBolusSettings, basalLimitSettings, cgmSettings,
+        reminders, globals, localizationSettings.
         """
         _set_unavailable = [
             TANDEM_SENSOR_KEY_ACTIVE_PROFILE,
@@ -1519,53 +1521,61 @@ class TandemCoordinator(DataUpdateCoordinator):
                 data[TANDEM_SENSOR_KEY_ACTIVE_PROFILE_ATTRS] = {}
 
             # ── Control-IQ settings ─────────────────────────────────────
-            ciq = settings.get("controlIQSettings") or {}
-            closed_loop = ciq.get("ClosedLoop")
+            # BFF renamed this block controlIQSettings → controlIqSettings and
+            # lowercased its field names (ClosedLoop → closedLoop, etc.).
+            ciq = settings.get("controlIqSettings") or {}
+            closed_loop = ciq.get("closedLoop")
             if closed_loop is not None:
                 data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] = "On" if closed_loop else "Off"
             else:
                 data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] = UNAVAILABLE
 
-            weight = ciq.get("Weight")
+            weight = ciq.get("weight")
             data[TANDEM_SENSOR_KEY_CONTROL_IQ_WEIGHT] = weight if weight is not None else UNAVAILABLE
 
-            tdi = ciq.get("TotalDailyInsulin")
+            tdi = ciq.get("totalDailyInsulin")
             data[TANDEM_SENSOR_KEY_CONTROL_IQ_TDI] = tdi if tdi is not None else UNAVAILABLE
 
             # ── Pump limits ─────────────────────────────────────────────
+            # BFF moved these out of pumpSettings into dedicated blocks:
+            # maxBolus → globalMaxBolusSettings, basalLimit → basalLimitSettings.
             pump_settings = settings.get("pumpSettings") or {}
-            max_bolus_raw = pump_settings.get("maxBolus")
+            max_bolus_settings = settings.get("globalMaxBolusSettings") or {}
+            basal_limit_settings = settings.get("basalLimitSettings") or {}
+
+            max_bolus_raw = max_bolus_settings.get("maxBolus")
             if max_bolus_raw is not None:
                 data[TANDEM_SENSOR_KEY_MAX_BOLUS] = round(max_bolus_raw / 1000, 1)
             else:
                 data[TANDEM_SENSOR_KEY_MAX_BOLUS] = UNAVAILABLE
 
-            basal_limit_raw = pump_settings.get("basalLimit")
+            basal_limit_raw = basal_limit_settings.get("basalLimit")
             if basal_limit_raw is not None:
                 data[TANDEM_SENSOR_KEY_BASAL_LIMIT] = round(basal_limit_raw / 1000, 1)
             else:
                 data[TANDEM_SENSOR_KEY_BASAL_LIMIT] = UNAVAILABLE
 
             # ── CGM alert thresholds ────────────────────────────────────
+            # BFF flattened these: highGlucoseAlert.mgPerDl → highGlucoseAlertMgPerDl.
             cgm_settings = settings.get("cgmSettings") or {}
-            high_alert = cgm_settings.get("highGlucoseAlert") or {}
-            low_alert = cgm_settings.get("lowGlucoseAlert") or {}
 
-            high_mgdl = high_alert.get("mgPerDl")
+            high_mgdl = cgm_settings.get("highGlucoseAlertMgPerDl")
             data[TANDEM_SENSOR_KEY_CGM_HIGH_ALERT] = high_mgdl if high_mgdl is not None else UNAVAILABLE
 
-            low_mgdl = low_alert.get("mgPerDl")
+            low_mgdl = cgm_settings.get("lowGlucoseAlertMgPerDl")
             data[TANDEM_SENSOR_KEY_CGM_LOW_ALERT] = low_mgdl if low_mgdl is not None else UNAVAILABLE
 
             # ── Alert thresholds ────────────────────────────────────────
-            alerts = settings.get("alertsAndReminders") or {}
-            low_bg = alerts.get("lowBgThreshold")
+            # BFF renamed alertsAndReminders → reminders (low/high BG threshold);
+            # lowInsulinThreshold moved into pumpSettings.
+            reminders = settings.get("reminders") or {}
+            low_bg = reminders.get("lowBgThreshold")
             data[TANDEM_SENSOR_KEY_LOW_BG_THRESHOLD] = low_bg if low_bg is not None else UNAVAILABLE
 
-            high_bg = alerts.get("highBgThreshold")
+            high_bg = reminders.get("highBgThreshold")
             data[TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD] = high_bg if high_bg is not None else UNAVAILABLE
 
-            low_insulin = alerts.get("lowInsulinThreshold")
+            low_insulin = pump_settings.get("lowInsulinThreshold")
             data[TANDEM_SENSOR_KEY_LOW_INSULIN_ALERT] = low_insulin if low_insulin is not None else UNAVAILABLE
 
         except Exception as e:

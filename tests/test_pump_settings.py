@@ -243,9 +243,9 @@ class TestPumpSettingsMissing:
             assert coordinator.data[key] is UNAVAILABLE, f"Key {key} should be UNAVAILABLE"
 
     async def test_missing_control_iq(self, hass: HomeAssistant, mock_tandem_recent_data):
-        """Test missing controlIQSettings is handled gracefully."""
+        """Test missing controlIqSettings is handled gracefully."""
         data = copy.deepcopy(mock_tandem_recent_data)
-        data["pump_metadata"]["lastUpload"]["settings"]["controlIQSettings"] = None
+        data["pump_metadata"]["lastUpload"]["settings"]["controlIqSettings"] = None
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] is UNAVAILABLE
@@ -266,9 +266,9 @@ class TestPumpSettingsMissing:
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] == "On"
 
     async def test_control_iq_off(self, hass: HomeAssistant, mock_tandem_recent_data):
-        """Test Control-IQ ClosedLoop=0 reports 'Off'."""
+        """Test Control-IQ closedLoop=0 reports 'Off'."""
         data = copy.deepcopy(mock_tandem_recent_data)
-        data["pump_metadata"]["lastUpload"]["settings"]["controlIQSettings"]["ClosedLoop"] = 0
+        data["pump_metadata"]["lastUpload"]["settings"]["controlIqSettings"]["closedLoop"] = 0
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED] == "Off"
@@ -320,12 +320,14 @@ class TestPumpSettingsMissing:
                                 },
                             ],
                         },
-                        "controlIQSettings": {"ClosedLoop": 1, "Weight": 70, "TotalDailyInsulin": 50},
-                        "pumpSettings": {"basalLimit": 2000, "maxBolus": 10000},
-                        "alertsAndReminders": {"lowInsulinThreshold": 15, "lowBgThreshold": 65, "highBgThreshold": 200},
+                        "controlIqSettings": {"closedLoop": 1, "weight": 70, "totalDailyInsulin": 50},
+                        "pumpSettings": {"lowInsulinThreshold": 15, "status": 0},
+                        "globalMaxBolusSettings": {"maxBolus": 10000},
+                        "basalLimitSettings": {"basalLimit": 2000},
+                        "reminders": {"lowBgThreshold": 65, "highBgThreshold": 200},
                         "cgmSettings": {
-                            "highGlucoseAlert": {"mgPerDl": 180, "enabled": 1},
-                            "lowGlucoseAlert": {"mgPerDl": 70, "enabled": 1},
+                            "highGlucoseAlertMgPerDl": 180,
+                            "lowGlucoseAlertMgPerDl": 70,
                         },
                     },
                 },
