@@ -495,10 +495,12 @@ def decode_pump_events(raw_b64: str) -> list[dict[str, Any]]:
 # properties, so all three map the same — important when a user swaps sensors.
 # ═══════════════════════════════════════════════════════════════════════════
 
-_SUSPEND_REASON_MAP = {0: "User", 1: "Alarm", 2: "Malfunction", 3: "Auto-PLGS"}
-_USER_MODE_MAP = {0: "Normal", 1: "Sleep", 2: "Exercise", 3: "Eating Soon"}
-_PCM_MAP = {0: "No Control", 1: "Open Loop", 2: "Pining", 3: "Closed Loop"}
-_BG_ENTRY_TYPE_MAP = {0: "Manual", 1: "Dexcom EGV"}
+# Typed dict[Any, str] because the lookup key comes from eventProperties as
+# ``Any | None`` (a missing/None code falls through to the default).
+_SUSPEND_REASON_MAP: dict[Any, str] = {0: "User", 1: "Alarm", 2: "Malfunction", 3: "Auto-PLGS"}
+_USER_MODE_MAP: dict[Any, str] = {0: "Normal", 1: "Sleep", 2: "Exercise", 3: "Eating Soon"}
+_PCM_MAP: dict[Any, str] = {0: "No Control", 1: "Open Loop", 2: "Pining", 3: "Closed Loop"}
+_BG_ENTRY_TYPE_MAP: dict[Any, str] = {0: "Manual", 1: "Dexcom EGV"}
 
 # CGM event codes that share the GXB eventProperties layout (G6, FSL2, G7).
 _CGM_EVENT_IDS = (EVT_CGM_DATA_GXB, EVT_CGM_DATA_FSL2, EVT_CGM_DATA_G7)
