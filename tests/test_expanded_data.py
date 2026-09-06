@@ -43,11 +43,8 @@ from custom_components.tandem.const import (
     TANDEM_SENSOR_KEY_BASAL_BOLUS_SPLIT,
     TANDEM_SENSOR_KEY_DAILY_CARBS,
     TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT,
-    # Battery sensors
+    # Battery sensor
     TANDEM_SENSOR_KEY_BATTERY_PERCENT,
-    TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
-    TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
-    TANDEM_SENSOR_KEY_CHARGING_STATUS,
     # Alert & Alarm sensors (Phase 2)
     TANDEM_SENSOR_KEY_LAST_ALERT,
     TANDEM_SENSOR_KEY_LAST_ALARM,
@@ -931,28 +928,6 @@ def _make_status_event(seq: int, battery_pct: int = 96, minutes_ago: int = 0) ->
     }
 
 
-def _make_usb_connected_event(seq: int, minutes_ago: int = 0) -> dict:
-    ts = BASE_TS - timedelta(minutes=minutes_ago)
-    return {
-        "event_id": 36,
-        "event_name": "USBConnected",
-        "seq": seq,
-        "timestamp": ts,
-        "negotiated_current_ma": 500.0,
-    }
-
-
-def _make_usb_disconnected_event(seq: int, minutes_ago: int = 0) -> dict:
-    ts = BASE_TS - timedelta(minutes=minutes_ago)
-    return {
-        "event_id": 37,
-        "event_name": "USBDisconnected",
-        "seq": seq,
-        "timestamp": ts,
-        "negotiated_current_ma": 0.0,
-    }
-
-
 class TestBatterySensorPopulation:
     """Test coordinator battery-level population from status events 9/34/35 (BFF)."""
 
@@ -966,9 +941,6 @@ class TestBatterySensorPopulation:
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] == 96
-        # Only the level is surfaced under the BFF — voltage/mAh stay unavailable.
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] is UNAVAILABLE
 
     async def test_latest_status_event_wins(self, hass: HomeAssistant):
         """The most recent status event determines the battery level."""
@@ -1004,65 +976,24 @@ class TestBatterySensorPopulation:
 
         assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] is UNAVAILABLE
 
-    async def test_usb_connected_shows_charging(self, hass: HomeAssistant):
-        """USB connected event sets charging status to 'Charging'."""
-        events = [
-            _make_cgm_event(1, 120),
-            _make_usb_connected_event(2),
-        ]
-        data = _make_pump_events_data(events)
-        coordinator = await _setup_coordinator(hass, data)
-
-        assert coordinator.data[TANDEM_SENSOR_KEY_CHARGING_STATUS] == "Charging"
-
-    async def test_usb_disconnected_shows_not_charging(self, hass: HomeAssistant):
-        """USB disconnected event sets charging status to 'Not Charging'."""
-        events = [
-            _make_cgm_event(1, 120),
-            _make_usb_disconnected_event(2),
-        ]
-        data = _make_pump_events_data(events)
-        coordinator = await _setup_coordinator(hass, data)
-
-        assert coordinator.data[TANDEM_SENSOR_KEY_CHARGING_STATUS] == "Not Charging"
-
-    async def test_usb_connect_then_disconnect(self, hass: HomeAssistant):
-        """Latest USB event determines charging status."""
-        events = [
-            _make_cgm_event(1, 120),
-            _make_usb_connected_event(2, minutes_ago=10),
-            _make_usb_disconnected_event(3, minutes_ago=5),
-        ]
-        data = _make_pump_events_data(events)
-        coordinator = await _setup_coordinator(hass, data)
-
-        assert coordinator.data[TANDEM_SENSOR_KEY_CHARGING_STATUS] == "Not Charging"
-
-    async def test_no_battery_events_all_unavailable(self, hass: HomeAssistant):
-        """No battery events → all battery sensors UNAVAILABLE."""
+    async def test_no_battery_events_unavailable(self, hass: HomeAssistant):
+        """No battery events → battery level UNAVAILABLE."""
         events = [_make_cgm_event(1, 120)]
         data = _make_pump_events_data(events)
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_CHARGING_STATUS] is UNAVAILABLE
 
-    async def test_status_and_usb_combined(self, hass: HomeAssistant):
-        """Status event sets the level; USB event sets charging status."""
+    async def test_status_event_level_only(self, hass: HomeAssistant):
+        """A status event sets the battery level (the only surfaced battery sensor)."""
         events = [
             _make_cgm_event(1, 120),
-            _make_status_event(2, battery_pct=70, minutes_ago=30),
-            _make_usb_connected_event(3, minutes_ago=10),
+            _make_status_event(2, battery_pct=70),
         ]
         data = _make_pump_events_data(events)
         coordinator = await _setup_coordinator(hass, data)
 
         assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] == 70
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_VOLTAGE] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH] is UNAVAILABLE
-        assert coordinator.data[TANDEM_SENSOR_KEY_CHARGING_STATUS] == "Charging"
 
 
 # ── Alert / Alarm helpers ─────────────────────────────────────────────────

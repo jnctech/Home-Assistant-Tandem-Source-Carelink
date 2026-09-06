@@ -7,7 +7,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfElectricPotential, UnitOfMass
+from homeassistant.const import EntityCategory, UnitOfMass
 
 from .const import (
     ICON_ALERT_CIRCLE_OUTLINE,
@@ -25,8 +25,6 @@ from .const import (
     TANDEM_SENSOR_KEY_BASAL_LIMIT,
     TANDEM_SENSOR_KEY_BASAL_RATE,
     TANDEM_SENSOR_KEY_BATTERY_PERCENT,
-    TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
-    TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
     TANDEM_SENSOR_KEY_CARTRIDGE_INSULIN,
     TANDEM_SENSOR_KEY_CGM_HIGH_ALERT,
     TANDEM_SENSOR_KEY_CGM_LOW_ALERT,
@@ -34,7 +32,6 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
-    TANDEM_SENSOR_KEY_CHARGING_STATUS,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
@@ -118,7 +115,6 @@ TANDEM_SENSORS_ALWAYS_AVAILABLE = (
     TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD,
     TANDEM_SENSOR_KEY_LOW_INSULIN_ALERT,
     TANDEM_SENSOR_KEY_BATTERY_PERCENT,
-    TANDEM_SENSOR_KEY_CHARGING_STATUS,
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
 )
 
@@ -687,35 +683,6 @@ TANDEM_SENSORS = (
         icon="mdi:battery",
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=1,
-    ),
-    SensorEntityDescription(
-        key=TANDEM_SENSOR_KEY_BATTERY_VOLTAGE,
-        name="Pump battery voltage",
-        native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.VOLTAGE,
-        icon="mdi:flash",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        suggested_display_precision=0,
-    ),
-    SensorEntityDescription(
-        key=TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH,
-        name="Pump battery remaining",
-        native_unit_of_measurement="mAh",
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=None,
-        icon="mdi:battery-charging",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        suggested_display_precision=0,
-    ),
-    SensorEntityDescription(
-        key=TANDEM_SENSOR_KEY_CHARGING_STATUS,
-        name="Pump charging status",
-        native_unit_of_measurement=None,
-        state_class=None,
-        device_class=None,
-        icon="mdi:power-plug",
-        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     # ── Phase 3: CGM sensor type (from event 313 AA_DAILY_STATUS) ────
     SensorEntityDescription(

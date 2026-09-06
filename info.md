@@ -6,7 +6,7 @@
 > This software is provided as-is with no warranty.
 
 The only Home Assistant integration for the **Tandem t:slim X2** insulin pump.
-Connect to your existing **Tandem Source** account and get **69 sensors** covering every
+Connect to your existing **Tandem Source** account and get **66 sensors** covering every
 metric your pump reports — glucose, insulin on board, Control-IQ status, battery, alerts, and more.
 
 **No extra hardware. No developer account. Just your Tandem Source login.**
@@ -21,8 +21,8 @@ Live CGM in mg/dL and mmol/L, rate of change, delta, time in range, GMI, SD, CV,
 **Insulin Delivery (14 sensors)**
 IOB, current basal rate, last bolus, TDI, daily totals, carb intake, bolus calculator details, estimated remaining insulin
 
-**Pump Battery (4 sensors)**
-Battery %, voltage (mV), remaining capacity (mAh), charging status
+**Pump Battery (1 sensor)**
+Battery level (%)
 
 **Alerts & Alarms (3 sensors)**
 Last alert, last alarm, active alert count — with human-readable names for ~65 alert/alarm types

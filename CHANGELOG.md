@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.0.1] - 2026-09-06
+
+Battery-level fix and battery-sensor cleanup on top of the v2.0.0 BFF migration.
+
+### Fixed
+- **Pump battery level always "unavailable"** — the level was sourced from events 81
+  (DailyBasal) / 53 (ShelfMode), which carry no battery data under the BFF (81 has none;
+  53 is absent on current firmware). The level is now read from the pump-status /
+  battery-detail events (9 / 34 / 35) via their `abc` (actual battery charge) field,
+  validated live against the physical charge ratio. Value is guarded to 0-100.
+
+### Removed
+- **Pump battery voltage, remaining (mAh), and charging-status sensors** — these had no
+  populated source under the BFF and reported only "unavailable". Removed along with the
+  now-unused USB charge-event handling; the pump battery **level** sensor remains. Sensor
+  count is now 66.
+
+### Docs
+- Fixed the `info.md` "Upgrading from …" section to match the README's v2 clean-install model
+  (v2.0.0 is a clean install; it does not migrate the old `carelink` entry or its statistics).
+
 ## [2.0.0] - 2026-09-06
 
 First stable release of the Tandem-only v2 rewrite. Restores full sensor data after

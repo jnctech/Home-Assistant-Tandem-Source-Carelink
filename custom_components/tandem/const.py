@@ -129,11 +129,8 @@ TANDEM_SENSOR_KEY_PREDICTED_GLUCOSE = "tandem_predicted_glucose"
 # ── Estimated Remaining Insulin key (Phase 6 — computed) ──────────────
 TANDEM_SENSOR_KEY_ESTIMATED_INSULIN_REMAINING = "tandem_estimated_insulin_remaining"
 
-# ── Battery monitoring keys (Phase 1 — from events 81, 53, 36, 37) ────
+# ── Battery monitoring key (Phase 1 — from events 9, 34, 35) ────
 TANDEM_SENSOR_KEY_BATTERY_PERCENT = "tandem_battery_percent"
-TANDEM_SENSOR_KEY_BATTERY_VOLTAGE = "tandem_battery_voltage"
-TANDEM_SENSOR_KEY_BATTERY_REMAINING_MAH = "tandem_battery_remaining_mah"
-TANDEM_SENSOR_KEY_CHARGING_STATUS = "tandem_charging_status"
 
 # ── Lookup maps for event-derived sensor values ───────────────────────
 CGM_STATUS_MAP: dict[int, str] = {0: "Normal", 1: "High", 2: "Low"}
