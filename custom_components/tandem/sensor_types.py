@@ -673,7 +673,7 @@ TANDEM_SENSORS = (
         entity_category=None,
         suggested_display_precision=0,
     ),
-    # ── Battery monitoring sensors (Phase 1) ────────────────────────────
+    # ── Battery monitoring sensor (Phase 1 — level from events 9/34/35) ──
     SensorEntityDescription(
         key=TANDEM_SENSOR_KEY_BATTERY_PERCENT,
         name="Pump battery level",
@@ -682,7 +682,7 @@ TANDEM_SENSORS = (
         device_class=SensorDeviceClass.BATTERY,
         icon="mdi:battery",
         entity_category=EntityCategory.DIAGNOSTIC,
-        suggested_display_precision=1,
+        suggested_display_precision=0,
     ),
     # ── Phase 3: CGM sensor type (from event 313 AA_DAILY_STATUS) ────
     SensorEntityDescription(
