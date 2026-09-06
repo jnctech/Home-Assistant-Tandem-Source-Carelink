@@ -13,7 +13,9 @@ from custom_components.tandem.tandem_api import (
     EVT_BOLUS_REQUESTED_MSG1,
     EVT_BOLUS_REQUESTED_MSG2,
     EVT_BOLUS_REQUESTED_MSG3,
+    EVT_BATTERY_1,
     EVT_DAILY_BASAL,
+    EVT_STATUS,
     TandemSourceClient,
     TandemAuthError,
     TandemApiError,
@@ -899,6 +901,35 @@ class TestMapPumpLogEventDailyStatus:
     def test_sensor_type_unknown_code(self):
         evt = map_pump_log_event(self._event({"sensorType": 9}))
         assert evt["sensor_type"] == "Unknown (9)"
+
+
+class TestMapPumpLogEventBattery:
+    """Pump-status / battery events (9/34/35) supply the battery level from `abc`."""
+
+    def _event(self, code, props):
+        return {
+            "eventCode": code,
+            "pumpDateTime": "2026-09-06T13:04:00",
+            "sequenceNumber": 3,
+            "eventProperties": props,
+        }
+
+    def test_status_event_battery_from_abc(self):
+        # `abc` (actual battery charge) is the display %, not `ibc` (reads ceilinged).
+        evt = map_pump_log_event(self._event(EVT_STATUS, {"abc": 96, "ibc": 100}))
+        assert evt is not None
+        assert evt["event_id"] == EVT_STATUS
+        assert evt["event_name"] == "PumpStatus"
+        assert evt["battery_percent"] == 96
+
+    def test_battery_detail_event_named_battery(self):
+        evt = map_pump_log_event(self._event(EVT_BATTERY_1, {"abc": 88}))
+        assert evt["event_name"] == "Battery"
+        assert evt["battery_percent"] == 88
+
+    def test_missing_abc_is_none(self):
+        evt = map_pump_log_event(self._event(EVT_STATUS, {"ibc": 100}))
+        assert evt["battery_percent"] is None
 
 
 class TestMapPumpLogEventBoundaries:

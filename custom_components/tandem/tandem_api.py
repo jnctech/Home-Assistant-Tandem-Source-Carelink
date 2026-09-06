@@ -74,6 +74,9 @@ EVT_MALFUNCTION_ACTIVATED = 6
 EVT_USB_CONNECTED = 36
 EVT_USB_DISCONNECTED = 37
 EVT_SHELF_MODE = 53
+EVT_STATUS = 9  # LID_STATUS — periodic pump status, carries battery charge (ibc)
+EVT_BATTERY_1 = 34  # LID battery detail (carries ibc + charge capacities)
+EVT_BATTERY_2 = 35  # LID battery detail (carries ibc + charge capacities)
 EVT_ALERT_CLEARED = 26
 EVT_ALARM_CLEARED = 28
 EVT_DAILY_BASAL = 81
@@ -724,6 +727,16 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
         evt["sensor_type"] = _CGM_SENSOR_TYPE_MAP.get(sensor_type, f"Unknown ({sensor_type})")
         evt["user_mode"] = g("usermode")
         evt["pump_control_state"] = g("pumpcontrolstate")
+
+    elif event_id in (EVT_STATUS, EVT_BATTERY_1, EVT_BATTERY_2):
+        # Pump status / battery-detail events. `abc` (actual battery charge) is the
+        # display battery percentage (0-100) — the value behind the pump's on-screen
+        # battery icon. Live validation (2026-09-06, event 9): abc=96 matched the
+        # physical charge ratio remainingChargeCapacity/fullChargeCapacity
+        # (403/420 = 96%), while the sibling `ibc` read a ceilinged 100. Used
+        # directly (no scaling); only the level is surfaced (not voltage/capacity).
+        evt["event_name"] = "PumpStatus" if event_id == EVT_STATUS else "Battery"
+        evt["battery_percent"] = g("abc")
 
     else:
         return None
