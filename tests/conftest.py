@@ -130,51 +130,44 @@ def mock_tandem_recent_data() -> dict[str, Any]:
                             },
                         ],
                     },
-                    "controlIQSettings": {
-                        "ClosedLoop": 1,
-                        "Weight": 74,
-                        "WeightUnit": 2,
-                        "TotalDailyInsulin": 60,
-                        "sleepSchedules": [
-                            {
-                                "activeDays": 127,
-                                "startTime": 1439,
-                                "endTime": 360,
-                                "enabled": 1,
-                            },
-                        ],
-                    },
-                    "pumpSettings": {
-                        "basalLimit": 2000,
-                        "maxBolus": 14000,
-                        "quickBolus": {
-                            "incrementsUnits": 500,
-                            "incrementsCarbs": 2000,
-                            "active": 0,
-                            "dataEntryType": 0,
-                            "status": 0,
+                    "controlIqSettings": {
+                        "closedLoop": 1,
+                        "weight": 74,
+                        "weightUnit": 2,
+                        "totalDailyInsulin": 60,
+                        "sleepSchedule0": {
+                            "activeDays": 127,
+                            "startTime": 1439,
+                            "endTime": 360,
+                            "enabled": 1,
                         },
                     },
-                    "alertsAndReminders": {
-                        "autoShutDownEnabled": 0,
+                    "pumpSettings": {
                         "lowInsulinThreshold": 20,
+                        "cannulaPrimeSize": 0,
+                        "autoShutdownEnabled": 0,
+                        "status": 0,
+                    },
+                    "globalMaxBolusSettings": {
+                        "maxBolus": 14000,
+                        "maxBolusDefault": 25000,
+                    },
+                    "basalLimitSettings": {
+                        "basalLimit": 2000,
+                        "basalLimitDefault": 15000,
+                    },
+                    "reminders": {
                         "lowBgThreshold": 70,
                         "highBgThreshold": 214,
                         "siteChangeDays": 3,
+                        "status": 0,
                     },
                     "cgmSettings": {
-                        "highGlucoseAlert": {
-                            "mgPerDl": 200,
-                            "enabled": 1,
-                            "duration": 0,
-                            "status": 7,
-                        },
-                        "lowGlucoseAlert": {
-                            "mgPerDl": 80,
-                            "enabled": 1,
-                            "duration": 0,
-                            "status": 7,
-                        },
+                        "highGlucoseAlertMgPerDl": 200,
+                        "highGlucoseAlertEnabled": 1,
+                        "lowGlucoseAlertMgPerDl": 80,
+                        "lowGlucoseAlertEnabled": 1,
+                        "cgmSensorType": 1,
                     },
                 },
             },
