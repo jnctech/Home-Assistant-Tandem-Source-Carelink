@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+### Added
+- **Four new sensors** read from fields already present on existing pump events
+  (no extra API calls):
+  - **CGM signal strength** (`rssi`) from CGM events (256/399) — diagnostic. Confirmed
+    present on G6/GXB (256); may read unavailable on G7 (399) until confirmed live.
+  - **Insulin on board — hours** and **minutes** (`iobHours` / `iobMinutes`) from the
+    pump status event (9), giving the remaining IOB duration — diagnostic.
+  - **Closed loop preferred** (`closedLoopPreferred`) from the PCM event (230), the
+    Control-IQ closed-loop preference — diagnostic.
+  - Sensor count is now 73.
+
 ## [2.1.1] - 2026-09-07
 
 ### Added
