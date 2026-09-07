@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.1.0] - 2026-09-07
+
+### Added
+- **CGM sensor session expiry** — three new sensors from the CGM session events
+  (212/213/214): `cgm_session_start`, `cgm_session_expiry` (session start + duration,
+  10 days on a G7), and `cgm_sensor_days_remaining`. Answers the "when does my sensor
+  expire" request (discussion #67). The wall-clock start is derived from the pump /
+  transmitter clock (`pumpDateTime - (currentTransmitterTime - sessionStartTime)`), so it
+  needs no epoch assumption. The sensors read unavailable between sessions and until the
+  active session's start event uploads (null-not-guess).
+- **Pump alert / alarm sensors now populate** — the BFF alert/alarm lifecycle events
+  (4/5/6/26/28) are now mapped, so `last_pump_alert`, `last_pump_alarm` and
+  `active_pump_alerts` report live values with human-readable names (previously always
+  unavailable). Event codes 8 and 27 appear live but are absent from the tconnectsync
+  catalog and remain unmapped pending identification.
+
+Sensor count is now 69.
+
 ## [2.0.1] - 2026-09-06
 
 Battery-level fix and battery-sensor cleanup on top of the v2.0.0 BFF migration.
