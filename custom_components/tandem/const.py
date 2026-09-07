@@ -116,6 +116,11 @@ TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT = "tandem_active_alerts_count"
 # ── CGM sensor type key (Phase 3 — from event 313) ────────────────────
 TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE = "tandem_cgm_sensor_type"
 
+# ── CGM sensor session keys (Phase 7 — from events 212, 213, 214) ─────
+TANDEM_SENSOR_KEY_CGM_SESSION_START = "tandem_cgm_session_start"
+TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY = "tandem_cgm_session_expiry"
+TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING = "tandem_cgm_sensor_days_remaining"
+
 # ── Bolus Calculator keys (Phase 4 — from events 64, 65, 66) ─────────
 TANDEM_SENSOR_KEY_LAST_BOLUS_BG = "tandem_last_bolus_bg"
 TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS = "tandem_last_bolus_carbs_entered"
@@ -134,6 +139,16 @@ TANDEM_SENSOR_KEY_BATTERY_PERCENT = "tandem_battery_percent"
 
 # ── Lookup maps for event-derived sensor values ───────────────────────
 CGM_STATUS_MAP: dict[int, str] = {0: "Normal", 1: "High", 2: "Low"}
+
+# CGM session start/join/stop reason → name (tconnectsync DexblesReason enum).
+# Only the confirmed members are listed; others fall back to "Reason {id}".
+CGM_SESSION_REASON_MAP: dict[int, str] = {
+    0: "User",
+    1: "Unknown",
+    3: "Transmitter End of Life",
+    4: "Transmitter Error",
+    5: "Session Stop Success",
+}
 
 # Alert and alarm ID → human-readable name maps.
 # Sourced from tconnectsync static_dicts.py (jwoglom/tconnectsync).

@@ -45,6 +45,10 @@ from custom_components.tandem.const import (
     TANDEM_SENSOR_KEY_DAILY_BOLUS_COUNT,
     # Battery sensor
     TANDEM_SENSOR_KEY_BATTERY_PERCENT,
+    # CGM sensor session (Phase 7)
+    TANDEM_SENSOR_KEY_CGM_SESSION_START,
+    TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY,
+    TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING,
     # Alert & Alarm sensors (Phase 2)
     TANDEM_SENSOR_KEY_LAST_ALERT,
     TANDEM_SENSOR_KEY_LAST_ALARM,
@@ -1274,6 +1278,106 @@ class TestAlertAlarmCoordinator:
         coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_ALERT] is UNAVAILABLE
         assert coordinator.data[TANDEM_SENSOR_KEY_LAST_ALARM] == "Empty Cartridge"
+
+
+# ── Helpers + tests: Phase 7 (CGM sensor session / expiry) ──────────────
+
+_DAY_SECONDS = 86400
+
+
+def _make_session_event(
+    seq: int,
+    *,
+    name: str,
+    event_id: int,
+    ct: int,
+    sst: int,
+    dur: int = 10,
+    minutes_ago: int = 0,
+    stop_time=None,
+    reason: int = 0,
+) -> dict:
+    """Build a decoded CGM-session event (212/213/214) as the mapper emits it."""
+    return {
+        "event_id": event_id,
+        "event_name": name,
+        "seq": seq,
+        "timestamp": BASE_TS - timedelta(minutes=minutes_ago),
+        "current_transmitter_time": ct,
+        "session_start_time": sst,
+        "session_duration_days": dur,
+        "session_stop_time": stop_time,
+        "session_reason": reason,
+    }
+
+
+class TestCgmSessionCoordinator:
+    """CGM sensor-session expiry sensors from events 212/213/214.
+
+    start_wall = anchor.timestamp - (ct - sst); expiry = start + duration days.
+    ct/sst are chosen so expiry lands a deterministic number of days from now.
+    """
+
+    async def test_active_session_populates(self, hass: HomeAssistant):
+        """Valid join, expiry in the future → start/expiry/days populated."""
+        events = [
+            _make_cgm_event(1, 100),
+            # ct-sst = 2 days elapsed since session start → expiry 8 days out.
+            _make_session_event(2, name="CGMSessionJoin", event_id=213, ct=2 * _DAY_SECONDS, sst=0, dur=10, reason=0),
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        start = coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_START]
+        expiry = coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY]
+        days = coordinator.data[TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING]
+        assert isinstance(start, datetime)
+        assert isinstance(expiry, datetime)
+        assert (expiry - start) == timedelta(days=10)
+        assert 7.0 < days < 9.0
+        attrs = coordinator.data.get(f"{TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY}_attributes", {})
+        assert attrs["session_duration_days"] == 10
+        assert attrs["session_started_via"] == "User"  # reason 0
+
+    async def test_no_session_events_unavailable(self, hass: HomeAssistant):
+        """No session events → all three sensors UNAVAILABLE."""
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data([_make_cgm_event(1, 100)]))
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_START] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] is UNAVAILABLE
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING] is UNAVAILABLE
+
+    async def test_stop_after_join_unavailable(self, hass: HomeAssistant):
+        """A stop newer than the join → session ended → UNAVAILABLE."""
+        events = [
+            _make_cgm_event(1, 100),
+            _make_session_event(
+                2, name="CGMSessionJoin", event_id=213, ct=2 * _DAY_SECONDS, sst=0, dur=10, minutes_ago=60
+            ),
+            _make_session_event(
+                3, name="CGMSessionStop", event_id=214, ct=3 * _DAY_SECONDS, sst=0xFFFFFFFF, stop_time=0, reason=6
+            ),
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] is UNAVAILABLE
+
+    async def test_expired_session_unavailable(self, hass: HomeAssistant):
+        """Anchor whose expiry is already in the past → UNAVAILABLE."""
+        events = [
+            _make_cgm_event(1, 100),
+            # 11 days elapsed on a 10-day session → expired 1 day ago.
+            _make_session_event(2, name="CGMSessionJoin", event_id=213, ct=11 * _DAY_SECONDS, sst=0, dur=10),
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] is UNAVAILABLE
+
+    async def test_only_stop_event_unavailable(self, hass: HomeAssistant):
+        """A stop event's sentinel start time is not a valid anchor → UNAVAILABLE."""
+        events = [
+            _make_cgm_event(1, 100),
+            _make_session_event(
+                2, name="CGMSessionStop", event_id=214, ct=3 * _DAY_SECONDS, sst=0xFFFFFFFF, stop_time=0, reason=6
+            ),
+        ]
+        coordinator = await _setup_coordinator(hass, _make_pump_events_data(events))
+        assert coordinator.data[TANDEM_SENSOR_KEY_CGM_SESSION_START] is UNAVAILABLE
 
 
 # ── Helpers: Phase 3 (CGM G7 / Libre 2 / Daily Status) ──────────────────

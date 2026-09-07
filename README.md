@@ -9,7 +9,7 @@
 > This software is provided as-is with no warranty. See [LICENSE](LICENSE).
 
 The only Home Assistant integration for the **Tandem t:slim X2** insulin pump.
-Get CGM readings, insulin on board, Control-IQ status, and 66 sensors —
+Get CGM readings, insulin on board, Control-IQ status, and 69 sensors —
 using your existing Tandem Source account. No extra hardware required.
 
 [![release](https://img.shields.io/github/v/release/jnctech/ha-tandem-pump)](https://github.com/jnctech/ha-tandem-pump/releases)
@@ -33,7 +33,7 @@ using your existing Tandem Source account. No extra hardware required.
 - Track time-in-range, GMI, and long-term insulin trends over weeks with the Statistics Graph card
 - Know your active basal profile, Control-IQ mode, and IOB — everything your pump reports, visible in your smart home
 
-## 66 sensors across 7 categories
+## 69 sensors across 7 categories
 
 | Category | Sensors | Highlights |
 |---|---|---|

@@ -48,6 +48,9 @@ from .tandem_api import (
     EVT_CGM_DATA_FSL2,
     EVT_CGM_DATA_G7,
     EVT_CGM_DATA_GXB,
+    EVT_CGM_SESSION_JOIN,
+    EVT_CGM_SESSION_START,
+    EVT_CGM_SESSION_STOP,
     EVT_DAILY_BASAL,
     EVT_MALFUNCTION_ACTIVATED,
     EVT_NEW_DAY,
@@ -62,6 +65,7 @@ from .tandem_api import (
 )
 from .exceptions import TandemApiError, TandemAuthError
 from .const import (
+    CGM_SESSION_REASON_MAP,
     CGM_STATUS_MAP,
     DEVICE_PUMP_MANUFACTURER,
     DEVICE_PUMP_MODEL,
@@ -86,7 +90,10 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_HIGH_ALERT,
     TANDEM_SENSOR_KEY_CGM_LOW_ALERT,
     TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE,
+    TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING,
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
+    TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY,
+    TANDEM_SENSOR_KEY_CGM_SESSION_START,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
@@ -143,6 +150,17 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_CGM_SESSION_TIME_SENTINEL = 0xFFFFFFFF  # uint32 max — "no valid time" marker
+
+
+def _valid_session_seconds(value: Any) -> bool:
+    """True when a CGM-session transmitter-clock field holds a real second count.
+
+    Stop events (214) and absent fields use the uint32 sentinel 0xFFFFFFFF (or
+    None), which must not be treated as a real transmitter time.
+    """
+    return isinstance(value, (int, float)) and 0 <= value < _CGM_SESSION_TIME_SENTINEL
 
 
 @dataclass
@@ -409,6 +427,9 @@ class TandemCoordinator(DataUpdateCoordinator):
         data[TANDEM_SENSOR_KEY_LAST_ALARM] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_CGM_SESSION_START] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_BOLUS_BG] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_BOLUS_CARBS] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_BOLUS_CORRECTION] = UNAVAILABLE
@@ -632,6 +653,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         bolus_req_msg3: list[dict[str, Any]] = []
         plgs_events: list[dict[str, Any]] = []
         new_day_events: list[dict[str, Any]] = []
+        cgm_session_events: list[dict[str, Any]] = []
 
         for evt in pump_events:
             eid = evt.get("event_id")
@@ -685,6 +707,8 @@ class TandemCoordinator(DataUpdateCoordinator):
                 plgs_events.append(evt)
             elif eid == EVT_NEW_DAY:
                 new_day_events.append(evt)
+            elif eid in (EVT_CGM_SESSION_START, EVT_CGM_SESSION_JOIN, EVT_CGM_SESSION_STOP):
+                cgm_session_events.append(evt)
 
         _LOGGER.debug(
             "Tandem: Events - CGM: %d, BolusCompleted: %d, BolexCompleted: %d, "
@@ -753,6 +777,7 @@ class TandemCoordinator(DataUpdateCoordinator):
         plgs_events.sort(key=lambda e: e["timestamp"])
         # NewDay events decoded for diagnostics logging (Phase 5).
         new_day_events.sort(key=lambda e: e["timestamp"])
+        cgm_session_events.sort(key=lambda e: e["timestamp"])
 
         # ── Populate current sensor values from latest events ────────
 
@@ -1122,6 +1147,20 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_LAST_ALARM] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = UNAVAILABLE
 
+        # ── CGM Sensor Session / expiry (Phase 7) ─────────────────────
+        try:
+            self._parse_cgm_session_events(cgm_session_events, data)
+        except Exception as e:
+            _LOGGER.error(
+                "Error parsing %d CGM session event(s): %s",
+                len(cgm_session_events),
+                e,
+                exc_info=True,
+            )
+            data[TANDEM_SENSOR_KEY_CGM_SESSION_START] = UNAVAILABLE
+            data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] = UNAVAILABLE
+            data[TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING] = UNAVAILABLE
+
         # ── CGM Sensor Type (Phase 3) ────────────────────────────────
         try:
             if daily_status_events:
@@ -1365,6 +1404,82 @@ class TandemCoordinator(DataUpdateCoordinator):
 
         # ── Active count (alerts + alarms combined) ───────────────────
         data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = len(active_alerts) + len(active_alarms)
+
+    def _parse_cgm_session_events(
+        self,
+        cgm_session_events: list[dict[str, Any]],
+        data: dict[str, Any],
+    ) -> None:
+        """Derive CGM sensor session start / expiry from events 212/213/214.
+
+        Events (tconnectsync LID_CGM_{START,JOIN,STOP}_SESSION_GX) carry, on the
+        transmitter clock in whole seconds (uint32): ``current_transmitter_time``
+        (the clock at the event) and ``session_start_time`` (the clock when the
+        session began). ``session_duration_days`` is the session length in whole
+        days (10 for a G7 sensor). The wall-clock session start is the event's
+        ``timestamp`` minus the transmitter seconds elapsed since the session
+        began, so the result needs no epoch assumption::
+
+            start_wall  = pumpDateTime - (current_transmitter_time - session_start_time)
+            expiry_wall = start_wall + session_duration_days
+
+        When the most recent session event is a stop (214), there is no active
+        sensor session, so the sensors go unavailable rather than report a stale
+        one (null-not-guess).
+        """
+        keys = (
+            TANDEM_SENSOR_KEY_CGM_SESSION_START,
+            TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY,
+            TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING,
+        )
+        # A session is anchored by a start/join (212/213) that carries a valid
+        # transmitter start time. Stop events (214) carry the sentinel
+        # 0xFFFFFFFF for sessionStartTime, so they cannot anchor a session.
+        starts = [
+            e
+            for e in cgm_session_events
+            if e.get("event_name") in ("CGMSessionStart", "CGMSessionJoin")
+            and _valid_session_seconds(e.get("session_start_time"))
+            and _valid_session_seconds(e.get("current_transmitter_time"))
+            and isinstance(e.get("session_duration_days"), (int, float))
+        ]
+        if not starts:
+            for key in keys:
+                data[key] = UNAVAILABLE
+            return
+
+        # Most recent valid start/join (list is pre-sorted by timestamp).
+        anchor = starts[-1]
+        ct = anchor["current_transmitter_time"]
+        sst = anchor["session_start_time"]
+        duration_days = anchor["session_duration_days"]
+        tz = ZoneInfo(self.timezone)
+        start_wall = anchor["timestamp"].replace(tzinfo=tz) - timedelta(seconds=ct - sst)
+        expiry_wall = start_wall + timedelta(days=duration_days)
+        now = datetime.now(tz)
+
+        # If a stop was logged after this start, or the session has already
+        # expired, the anchored sensor is no longer current and the current
+        # sensor's start has not uploaded yet — report unavailable rather than a
+        # stale/expired session (null-not-guess).
+        stopped_after = any(
+            e.get("event_name") == "CGMSessionStop" and e["timestamp"] > anchor["timestamp"] for e in cgm_session_events
+        )
+        if stopped_after or expiry_wall <= now:
+            for key in keys:
+                data[key] = UNAVAILABLE
+            return
+
+        reason_id = anchor.get("session_reason")
+        data[TANDEM_SENSOR_KEY_CGM_SESSION_START] = start_wall
+        data[TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY] = expiry_wall
+        data[TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING] = round((expiry_wall - now).total_seconds() / 86400.0, 2)
+        data[f"{TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY}_attributes"] = {
+            "session_duration_days": duration_days,
+            "session_started_via": (
+                CGM_SESSION_REASON_MAP.get(reason_id, f"Reason {reason_id}") if reason_id is not None else None
+            ),
+        }
 
     def _parse_dashboard_summary(self, summary: dict[str, Any] | None, data: dict[str, Any]) -> None:
         """Parse dashboard summary into sensor values."""

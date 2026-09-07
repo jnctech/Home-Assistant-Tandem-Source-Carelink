@@ -29,7 +29,10 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_HIGH_ALERT,
     TANDEM_SENSOR_KEY_CGM_LOW_ALERT,
     TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE,
+    TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING,
     TANDEM_SENSOR_KEY_CGM_SENSOR_TYPE,
+    TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY,
+    TANDEM_SENSOR_KEY_CGM_SESSION_START,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
@@ -693,6 +696,36 @@ TANDEM_SENSORS = (
         device_class=None,
         icon="mdi:chip",
         entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    # ── Phase 7: CGM sensor session / expiry (from events 212, 213, 214) ─
+    SensorEntityDescription(
+        key=TANDEM_SENSOR_KEY_CGM_SESSION_START,
+        name="CGM sensor session start",
+        native_unit_of_measurement=None,
+        state_class=None,
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:play-circle-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=TANDEM_SENSOR_KEY_CGM_SESSION_EXPIRY,
+        name="CGM sensor session expiry",
+        native_unit_of_measurement=None,
+        state_class=None,
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:calendar-clock",
+        entity_category=None,
+    ),
+    SensorEntityDescription(
+        key=TANDEM_SENSOR_KEY_CGM_SENSOR_DAYS_REMAINING,
+        name="CGM sensor days remaining",
+        native_unit_of_measurement="d",
+        # Intermittently unavailable between sensor sessions — a MEASUREMENT
+        # state_class with gaps causes LTS holes, so leave it None.
+        state_class=None,
+        device_class=None,
+        icon="mdi:timer-sand",
+        entity_category=None,
     ),
     # ── Phase 4: Bolus Calculator (from events 64, 65, 66) ────────
     SensorEntityDescription(
