@@ -7,7 +7,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfMass
+from homeassistant.const import EntityCategory, UnitOfMass, UnitOfTime
 
 from .const import (
     ICON_ALERT_CIRCLE_OUTLINE,
@@ -35,6 +35,7 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_SESSION_START,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
+    TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
@@ -49,6 +50,8 @@ from .const import (
     TANDEM_SENSOR_KEY_GLUCOSE_STD_DEV,
     TANDEM_SENSOR_KEY_GMI,
     TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD,
+    TANDEM_SENSOR_KEY_IOB_HOURS,
+    TANDEM_SENSOR_KEY_IOB_MINUTES,
     TANDEM_SENSOR_KEY_LASTSG_MGDL,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
@@ -77,6 +80,7 @@ from .const import (
     TANDEM_SENSOR_KEY_PUMP_SERIAL_INFO,
     TANDEM_SENSOR_KEY_PUMP_SUSPENDED,
     TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON,
+    TANDEM_SENSOR_KEY_RSSI,
     TANDEM_SENSOR_KEY_SG_DELTA,
     TANDEM_SENSOR_KEY_SOFTWARE_VERSION,
     TANDEM_SENSOR_KEY_TIME_ABOVE_RANGE,
@@ -686,6 +690,49 @@ TANDEM_SENSORS = (
         icon="mdi:battery",
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=0,
+    ),
+    # ── Cheap wins: one-line reads of fields already on existing events ──
+    SensorEntityDescription(
+        # CGM transmitter signal strength (event 256 / 399). Raw pump value; the
+        # unit/scale is not documented by Tandem, so no device_class/unit is claimed.
+        key=TANDEM_SENSOR_KEY_RSSI,
+        name="CGM signal strength",
+        native_unit_of_measurement=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=None,
+        icon="mdi:signal",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+    ),
+    SensorEntityDescription(
+        key=TANDEM_SENSOR_KEY_IOB_HOURS,
+        name="Insulin on board (hours)",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=None,
+        icon="mdi:timer-sand",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+    ),
+    SensorEntityDescription(
+        key=TANDEM_SENSOR_KEY_IOB_MINUTES,
+        name="Insulin on board (minutes)",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=None,
+        icon="mdi:timer-sand",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+    ),
+    SensorEntityDescription(
+        # Control-IQ setting: whether closed-loop is preferred (bool True/False).
+        key=TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED,
+        name="Closed loop preferred",
+        native_unit_of_measurement=None,
+        state_class=None,
+        device_class=None,
+        icon="mdi:robot",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     # ── Phase 3: CGM sensor type (from event 313 AA_DAILY_STATUS) ────
     SensorEntityDescription(

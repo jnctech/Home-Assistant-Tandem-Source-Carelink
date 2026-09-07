@@ -96,6 +96,7 @@ from .const import (
     TANDEM_SENSOR_KEY_CGM_SESSION_START,
     TANDEM_SENSOR_KEY_CGM_STATUS,
     TANDEM_SENSOR_KEY_CGM_USAGE,
+    TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_ENABLED,
     TANDEM_SENSOR_KEY_CONTROL_IQ_MODE,
     TANDEM_SENSOR_KEY_CONTROL_IQ_STATUS,
@@ -110,6 +111,8 @@ from .const import (
     TANDEM_SENSOR_KEY_GLUCOSE_STD_DEV,
     TANDEM_SENSOR_KEY_GMI,
     TANDEM_SENSOR_KEY_HIGH_BG_THRESHOLD,
+    TANDEM_SENSOR_KEY_IOB_HOURS,
+    TANDEM_SENSOR_KEY_IOB_MINUTES,
     TANDEM_SENSOR_KEY_LASTSG_MGDL,
     TANDEM_SENSOR_KEY_LASTSG_MMOL,
     TANDEM_SENSOR_KEY_LASTSG_TIMESTAMP,
@@ -140,6 +143,7 @@ from .const import (
     TANDEM_SENSOR_KEY_PUMP_SERIAL_INFO,
     TANDEM_SENSOR_KEY_PUMP_SUSPENDED,
     TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON,
+    TANDEM_SENSOR_KEY_RSSI,
     TANDEM_SENSOR_KEY_SG_DELTA,
     TANDEM_SENSOR_KEY_SOFTWARE_VERSION,
     TANDEM_SENSOR_KEY_TIME_ABOVE_RANGE,
@@ -423,6 +427,10 @@ class TandemCoordinator(DataUpdateCoordinator):
         data[TANDEM_SENSOR_KEY_LAST_CARTRIDGE_FILL] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_PUMP_SUSPEND_REASON] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_RSSI] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_IOB_HOURS] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_IOB_MINUTES] = UNAVAILABLE
+        data[TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_ALERT] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_LAST_ALARM] = UNAVAILABLE
         data[TANDEM_SENSOR_KEY_ACTIVE_ALERTS_COUNT] = UNAVAILABLE
@@ -787,6 +795,11 @@ class TandemCoordinator(DataUpdateCoordinator):
                 latest = cgm_readings[-1]
                 sg_mgdl = latest.get("glucose_mgdl", 0)
 
+                # Signal strength is independent of glucose validity — surface it
+                # whenever a reading exists (absent on some transmitters -> unavailable).
+                rssi_val = latest.get("rssi")
+                data[TANDEM_SENSOR_KEY_RSSI] = rssi_val if isinstance(rssi_val, (int, float)) else UNAVAILABLE
+
                 if sg_mgdl and sg_mgdl > 0:
                     data[TANDEM_SENSOR_KEY_LASTSG_MGDL] = int(sg_mgdl)
                     data[TANDEM_SENSOR_KEY_LASTSG_MMOL] = round(sg_mgdl * 0.0555, 2)
@@ -825,6 +838,7 @@ class TandemCoordinator(DataUpdateCoordinator):
                 data[TANDEM_SENSOR_KEY_SG_DELTA] = UNAVAILABLE
                 data[TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE] = UNAVAILABLE
                 data[TANDEM_SENSOR_KEY_CGM_STATUS] = UNAVAILABLE
+                data[TANDEM_SENSOR_KEY_RSSI] = UNAVAILABLE
         except Exception as e:
             _LOGGER.warning("Error parsing CGM: %s", e, exc_info=True)
             data[TANDEM_SENSOR_KEY_LASTSG_MMOL] = UNAVAILABLE
@@ -833,6 +847,7 @@ class TandemCoordinator(DataUpdateCoordinator):
             data[TANDEM_SENSOR_KEY_SG_DELTA] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_CGM_RATE_OF_CHANGE] = UNAVAILABLE
             data[TANDEM_SENSOR_KEY_CGM_STATUS] = UNAVAILABLE
+            data[TANDEM_SENSOR_KEY_RSSI] = UNAVAILABLE
 
         # ── Store recent readings history as attributes ───────────────
         # Custom Lovelace cards (e.g. ApexCharts) can use these for
@@ -1032,8 +1047,11 @@ class TandemCoordinator(DataUpdateCoordinator):
         if pcm_changes:
             last_pcm = pcm_changes[-1]
             data[TANDEM_SENSOR_KEY_CONTROL_IQ_MODE] = last_pcm.get("current_pcm", UNAVAILABLE)
+            clp = last_pcm.get("closed_loop_preferred")
+            data[TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED] = clp if isinstance(clp, bool) else UNAVAILABLE
         else:
             data[TANDEM_SENSOR_KEY_CONTROL_IQ_MODE] = UNAVAILABLE
+            data[TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED] = UNAVAILABLE
 
         # ── BG readings ────────────────────────────────────────────────
         if bg_readings:
@@ -1131,6 +1149,28 @@ class TandemCoordinator(DataUpdateCoordinator):
         except Exception as e:
             _LOGGER.warning("Error parsing battery data: %s", e, exc_info=True)
             data[TANDEM_SENSOR_KEY_BATTERY_PERCENT] = UNAVAILABLE
+
+        # ── Insulin-on-board remaining duration ────────────────────────
+        # From the status event (9) only — the battery-detail events (34/35)
+        # share the bucket but carry no IOB, so filter on iob_hours presence.
+        try:
+            iob_hours = UNAVAILABLE
+            iob_minutes = UNAVAILABLE
+            iob_events = [e for e in battery_status_events if e.get("iob_hours") is not None]
+            if iob_events:
+                latest_iob = max(iob_events, key=lambda e: e["timestamp"])
+                raw_h = latest_iob.get("iob_hours")
+                raw_m = latest_iob.get("iob_minutes")
+                if isinstance(raw_h, (int, float)) and raw_h >= 0:
+                    iob_hours = int(raw_h)
+                if isinstance(raw_m, (int, float)) and raw_m >= 0:
+                    iob_minutes = int(raw_m)
+            data[TANDEM_SENSOR_KEY_IOB_HOURS] = iob_hours
+            data[TANDEM_SENSOR_KEY_IOB_MINUTES] = iob_minutes
+        except Exception as e:
+            _LOGGER.warning("Error parsing IOB duration: %s", e, exc_info=True)
+            data[TANDEM_SENSOR_KEY_IOB_HOURS] = UNAVAILABLE
+            data[TANDEM_SENSOR_KEY_IOB_MINUTES] = UNAVAILABLE
 
         # ── Alerts & Alarms (Phase 2) ─────────────────────────────────
         try:

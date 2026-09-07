@@ -137,6 +137,15 @@ TANDEM_SENSOR_KEY_ESTIMATED_INSULIN_REMAINING = "tandem_estimated_insulin_remain
 # ── Battery monitoring key (Phase 1 — from events 9, 34, 35) ────
 TANDEM_SENSOR_KEY_BATTERY_PERCENT = "tandem_battery_percent"
 
+# ── Cheap-win keys (one-line reads of fields already on existing events) ──
+# CGM transmitter signal strength (event 256 / 399, field `rssi`).
+TANDEM_SENSOR_KEY_RSSI = "tandem_rssi"
+# Insulin-on-board duration (event 9 status, fields `iobHours` / `iobMinutes`).
+TANDEM_SENSOR_KEY_IOB_HOURS = "tandem_iob_hours"
+TANDEM_SENSOR_KEY_IOB_MINUTES = "tandem_iob_minutes"
+# Control-IQ closed-loop-preferred setting (event 230 PCM, field `closedLoopPreferred`).
+TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED = "tandem_closed_loop_preferred"
+
 # ── Lookup maps for event-derived sensor values ───────────────────────
 CGM_STATUS_MAP: dict[int, str] = {0: "Normal", 1: "High", 2: "Low"}
 

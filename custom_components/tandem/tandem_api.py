@@ -599,6 +599,9 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
         rate = g("rate")
         evt["rate_of_change"] = round(rate * 0.1, 1) if isinstance(rate, (int, float)) else None
         evt["status"] = g("glucosevaluestatus")
+        # CGM transmitter signal strength. Confirmed present on event 256 (G6/GXB)
+        # in live validation; not confirmed on 399 (G7) — absent -> None (null-not-guess).
+        evt["rssi"] = g("rssi")
 
     elif event_id in (EVT_BOLUS_COMPLETED, EVT_BOLEX_COMPLETED):
         evt["event_name"] = "BolusCompleted" if event_id == EVT_BOLUS_COMPLETED else "BolexCompleted"
@@ -691,6 +694,8 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
         previous = g("previouspcm")
         evt["current_pcm"] = _PCM_MAP.get(current, f"PCM_{current}")
         evt["previous_pcm"] = _PCM_MAP.get(previous, f"PCM_{previous}")
+        # Control-IQ setting: whether the user prefers closed-loop operation.
+        evt["closed_loop_preferred"] = _as_bool(g("closedlooppreferred"))
 
     elif event_id == EVT_BOLUS_REQUESTED_MSG1:
         # Bolus calculator message 1 — carbs/BG/IOB at request time. Joined with
@@ -743,6 +748,11 @@ def map_pump_log_event(event: dict[str, Any]) -> dict[str, Any] | None:
         # directly (no scaling); only the level is surfaced (not voltage/capacity).
         evt["event_name"] = "PumpStatus" if event_id == EVT_STATUS else "Battery"
         evt["battery_percent"] = g("abc")
+        # Insulin-on-board remaining duration (hours + minutes). Present on the
+        # status event (9) only; the battery-detail events (34/35) carry no IOB,
+        # so these read None there (null-not-guess).
+        evt["iob_hours"] = g("iobhours")
+        evt["iob_minutes"] = g("iobminutes")
 
     elif event_id in (EVT_ALERT_ACTIVATED, EVT_ALERT_CLEARED):
         # Alert lifecycle (tconnectsync LID_ALERT_ACTIVATED/CLEARED). The

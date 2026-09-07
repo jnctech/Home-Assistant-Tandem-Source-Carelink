@@ -10,10 +10,13 @@ import pytest
 
 from custom_components.tandem.tandem_api import (
     EVT_AA_DAILY_STATUS,
+    EVT_AA_PCM_CHANGE,
     EVT_ALARM_ACTIVATED,
     EVT_ALARM_CLEARED,
     EVT_ALERT_ACTIVATED,
     EVT_ALERT_CLEARED,
+    EVT_CGM_DATA_G7,
+    EVT_CGM_DATA_GXB,
     EVT_CGM_SESSION_JOIN,
     EVT_CGM_SESSION_START,
     EVT_CGM_SESSION_STOP,
@@ -938,6 +941,74 @@ class TestMapPumpLogEventBattery:
     def test_missing_abc_is_none(self):
         evt = map_pump_log_event(self._event(EVT_STATUS, {"ibc": 100}))
         assert evt["battery_percent"] is None
+
+    def test_status_event_iob_duration(self):
+        # Insulin-on-board remaining duration is read from the status event (9).
+        evt = map_pump_log_event(self._event(EVT_STATUS, {"abc": 96, "iobHours": 2, "iobMinutes": 45}))
+        assert evt["iob_hours"] == 2
+        assert evt["iob_minutes"] == 45
+
+    def test_missing_iob_duration_is_none(self):
+        evt = map_pump_log_event(self._event(EVT_STATUS, {"abc": 96}))
+        assert evt["iob_hours"] is None
+        assert evt["iob_minutes"] is None
+
+    def test_battery_detail_event_has_no_iob(self):
+        # Battery-detail events (34/35) carry no IOB fields.
+        evt = map_pump_log_event(self._event(EVT_BATTERY_1, {"abc": 88}))
+        assert evt["iob_hours"] is None
+        assert evt["iob_minutes"] is None
+
+
+class TestMapPumpLogEventCgm:
+    """CGM data events (256/399) supply glucose plus transmitter signal strength."""
+
+    def _event(self, code, props):
+        return {
+            "eventCode": code,
+            "pumpDateTime": "2026-09-06T13:04:00",
+            "sequenceNumber": 7,
+            "eventProperties": props,
+        }
+
+    def test_cgm_gxb_event_reads_rssi(self):
+        evt = map_pump_log_event(self._event(EVT_CGM_DATA_GXB, {"currentGlucoseDisplayValue": 120, "rssi": -62}))
+        assert evt["event_name"] == "CGM"
+        assert evt["glucose_mgdl"] == 120
+        assert evt["rssi"] == -62
+
+    def test_cgm_g7_event_reads_rssi(self):
+        evt = map_pump_log_event(self._event(EVT_CGM_DATA_G7, {"currentGlucoseDisplayValue": 110, "rssi": -70}))
+        assert evt["rssi"] == -70
+
+    def test_cgm_missing_rssi_is_none(self):
+        evt = map_pump_log_event(self._event(EVT_CGM_DATA_G7, {"currentGlucoseDisplayValue": 110}))
+        assert evt["rssi"] is None
+
+
+class TestMapPumpLogEventPcm:
+    """PCM change events (230) carry the Control-IQ closed-loop-preferred setting."""
+
+    def _event(self, props):
+        return {
+            "eventCode": EVT_AA_PCM_CHANGE,
+            "pumpDateTime": "2026-09-06T13:04:00",
+            "sequenceNumber": 11,
+            "eventProperties": props,
+        }
+
+    def test_pcm_event_reads_closed_loop_preferred_true(self):
+        evt = map_pump_log_event(self._event({"currentPcm": 1, "closedLoopPreferred": True}))
+        assert evt["event_name"] == "PCMChange"
+        assert evt["closed_loop_preferred"] is True
+
+    def test_pcm_event_reads_closed_loop_preferred_false(self):
+        evt = map_pump_log_event(self._event({"currentPcm": 0, "closedLoopPreferred": False}))
+        assert evt["closed_loop_preferred"] is False
+
+    def test_pcm_missing_closed_loop_preferred_is_none(self):
+        evt = map_pump_log_event(self._event({"currentPcm": 1}))
+        assert evt["closed_loop_preferred"] is None
 
 
 class TestMapPumpLogEventAlertsAlarms:
