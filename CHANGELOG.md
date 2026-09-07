@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.2.0] - 2026-09-07
+
 ### Added
 - **Four new sensors** read from fields already present on existing pump events
   (no extra API calls):
