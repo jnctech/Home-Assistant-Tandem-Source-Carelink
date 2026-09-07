@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.1.1] - 2026-09-07
+
+### Added
+- **Local brand icon** — bundled `custom_components/tandem/brand/icon.png` so the
+  integration provides its own brand assets. Since Home Assistant 2026.3, custom
+  integrations serve brand images from a local `brand/` directory (brands proxy API),
+  which takes precedence over the `home-assistant/brands` repository. This satisfies the
+  HACS validation `brands` check without an external brands-repository PR, unblocking a
+  HACS default-store submission. No functional change to the integration.
+
 ## [2.1.0] - 2026-09-07
 
 ### Added
