@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+## [2.2.1] - 2026-09-09
+
+### Fixed
+- **CGM glucose over-read on Dexcom G7 (safety).** When the CGM reports out of range
+  (`glucoseValueStatus` High/Low), the Source BFF `currentGlucoseDisplayValue` is not a valid
+  display reading — G7 (event 399) sends a large raw estimate (observed 400–1200 mg/dL at
+  status=High) while G6 (event 256) sends a ~0 sentinel. The integration surfaced that raw value
+  verbatim, so a genuine high could display as 33–66 mmol/L as a live reading (with
+  `data_stale` off). Glucose is now clamped to the sensor's reportable bound (High → 400 mg/dL /
+  22.2 mmol, Low → 40 mg/dL / 2.2 mmol) at the source, so the latest-glucose sensor **and** all
+  derived stats (average / TIR / GMI / SG-delta) use the bounded value; in-range (Normal)
+  readings are unchanged. Each clamp is logged, with a warning on a decode-fault signature. (#85)
+
 ## [2.2.0] - 2026-09-07
 
 ### Added
