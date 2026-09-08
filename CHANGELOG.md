@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - develop
 
+### Changed
+- **Faster startup.** The integration now fetches only a short history window on
+  first load so Home Assistant entry setup completes quickly, then backfills the
+  full window (used for the retrospective trend statistics and long-term
+  statistics) on a background task once setup is done. Real-time sensors (current
+  glucose, IOB, basal) are available immediately as before; the trend stats
+  (average / TIR / GMI) populate a few seconds later. Also removes a duplicate
+  pump-metadata API call on every poll. No change to any sensor's values.
+
 ## [2.2.1] - 2026-09-09
 
 ### Fixed
