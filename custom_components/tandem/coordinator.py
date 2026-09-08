@@ -171,6 +171,60 @@ def _valid_session_seconds(value: Any) -> bool:
     return isinstance(value, (int, float)) and 0 <= value < _CGM_SESSION_TIME_SENTINEL
 
 
+def _clamp_cgm_over_range(evt: dict[str, Any]) -> None:
+    """Clamp an out-of-range CGM reading to the sensor's reportable bound, in place.
+
+    When the CGM reports High/Low (``glucoseValueStatus`` 1/2) the numeric
+    ``currentGlucoseDisplayValue`` is not a valid display reading: G7 (event 399)
+    sends a large raw estimate (observed 400–1200 mg/dL at status=High), while G6
+    (event 256) sends a ~0 sentinel. The physical sensor pegs at its reportable
+    bound and shows HIGH/LOW, so we clamp ``glucose_mgdl`` to that bound instead of
+    surfacing a fabricated extreme as a decision-input (ADR-008 fail-visible /
+    null-not-guess). Confirmed 2026-09-08 via a live event-399 probe.
+
+    Applied at the single point every CGM event enters the pipeline, so ALL
+    consumers see the bounded value — the latest-glucose sensor, ``_compute_cgm_summary``
+    (avg/TIR/GMI/SD), the history attributes, and the LTS statistics import (a
+    separate task that reads these same in-place-mutated event dicts). A future
+    refactor that deep-copies events before the import would need to clamp there too.
+
+    Trade-off: the summary stats then cannot tell a pegged bound from a genuine
+    reading at that bound (mirrors the physical sensor); an over-range counter could
+    restore that distinction — see ISS-260908.
+
+    Fail-visible: every clamp is logged with the raw value. A raw value OUTSIDE the
+    expected over-range signature (High → large, Low → ~0), or an out-of-band
+    magnitude carrying no High/Low status at all, is logged at WARNING — that is the
+    signature of a decode fault rather than a legitimately pegged sensor, and is the
+    case most worth surfacing. ``CGM_GLUCOSE_MGDL_MAX`` is the Dexcom G6/G7 ceiling; a
+    FreeStyle Libre (event 372) ceiling differs, but any clamp still beats a raw extreme.
+    """
+    raw = evt.get("glucose_mgdl")
+    try:
+        status = int(evt["status"]) if evt.get("status") is not None else None
+    except (TypeError, ValueError):
+        status = None
+
+    clamped: int | None = None
+    expected = False
+    if status == CGM_STATUS_HIGH:
+        clamped = CGM_GLUCOSE_MGDL_MAX
+        expected = isinstance(raw, (int, float)) and raw >= CGM_GLUCOSE_MGDL_MAX
+    elif status == CGM_STATUS_LOW:
+        clamped = CGM_GLUCOSE_MGDL_MIN
+        expected = isinstance(raw, (int, float)) and 0 <= raw <= CGM_GLUCOSE_MGDL_MIN
+    elif isinstance(raw, (int, float)) and raw > CGM_GLUCOSE_MGDL_MAX:
+        # Out-of-band magnitude with no High status: missing/malformed status or a
+        # decode fault. Never surface it raw; clamp defensively and warn.
+        clamped = CGM_GLUCOSE_MGDL_MAX
+
+    if clamped is None or clamped == raw:
+        return
+    log = _LOGGER.debug if expected else _LOGGER.warning
+    log("Tandem: CGM over-range clamp (status=%r raw=%r -> %s mg/dL)", evt.get("status"), raw, clamped)
+    evt["glucose_mgdl"] = clamped
+
+
 @dataclass
 class TandemRuntimeData:
     """Per-entry runtime data for the Tandem integration.
@@ -670,19 +724,9 @@ class TandemCoordinator(DataUpdateCoordinator):
         for evt in pump_events:
             eid = evt.get("event_id")
             if eid in (EVT_CGM_DATA_GXB, EVT_CGM_DATA_G7, EVT_CGM_DATA_FSL2):
-                # Over-range gate (safety): when the CGM reports High/Low, the numeric
-                # value is not a valid reading — G7 (event 399) sends a large raw estimate
-                # (observed 400–1200 mg/dL at status=High), while G6 sends a ~0 sentinel.
-                # Clamp to the reportable bound at the source so the fabricated extreme
-                # never reaches the latest-glucose sensor OR the derived summary stats
-                # (avg / TIR / GMI / SG-delta all read glucose_mgdl). Mirrors how the
-                # physical sensor pegs and shows HIGH/LOW. Confirmed 2026-09-08 via a live
-                # event-399 probe. (ADR-008 fail-visible / null-not-guess.)
-                cgm_status_code = evt.get("status")
-                if cgm_status_code == CGM_STATUS_HIGH:
-                    evt["glucose_mgdl"] = CGM_GLUCOSE_MGDL_MAX
-                elif cgm_status_code == CGM_STATUS_LOW:
-                    evt["glucose_mgdl"] = CGM_GLUCOSE_MGDL_MIN
+                # Safety: clamp out-of-range readings before ANY consumer sees them
+                # (over-range G7 sends a fabricated 400–1200 mg/dL). See helper docstring.
+                _clamp_cgm_over_range(evt)
                 cgm_readings.append(evt)
             elif eid == EVT_BOLUS_COMPLETED:
                 bolus_completed.append(evt)
