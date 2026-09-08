@@ -149,6 +149,20 @@ TANDEM_SENSOR_KEY_CLOSED_LOOP_PREFERRED = "tandem_closed_loop_preferred"
 # ── Lookup maps for event-derived sensor values ───────────────────────
 CGM_STATUS_MAP: dict[int, str] = {0: "Normal", 1: "High", 2: "Low"}
 
+# glucoseValueStatus codes (from CGM_STATUS_MAP) used to gate the numeric reading.
+CGM_STATUS_HIGH = 1
+CGM_STATUS_LOW = 2
+
+# Dexcom G6/G7 reportable range (mg/dL). Above/below this the sensor reports HIGH/LOW
+# rather than a number, and the BFF's ``currentGlucoseDisplayValue`` then carries an
+# out-of-range placeholder that differs by sensor: G6 sends a ~0 sentinel, but G7 (event
+# 399) sends a LARGE raw estimate (observed 400–1200 mg/dL when glucoseValueStatus=High).
+# When the status is High/Low we clamp the reading to these bounds so a fabricated extreme
+# is never surfaced as a decision-input (see ADR-008 fail-visible / null-not-guess).
+# Confirmed 2026-09-08 via live event-399 probe (G7 High → 33–66 mmol/L before the clamp).
+CGM_GLUCOSE_MGDL_MAX = 400
+CGM_GLUCOSE_MGDL_MIN = 40
+
 # CGM session start/join/stop reason → name (tconnectsync DexblesReason enum).
 # Only the confirmed members are listed; others fall back to "Reason {id}".
 CGM_SESSION_REASON_MAP: dict[int, str] = {
