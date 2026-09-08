@@ -66,6 +66,10 @@ from .tandem_api import (
 from .exceptions import TandemApiError, TandemAuthError
 from .const import (
     CGM_SESSION_REASON_MAP,
+    CGM_GLUCOSE_MGDL_MAX,
+    CGM_GLUCOSE_MGDL_MIN,
+    CGM_STATUS_HIGH,
+    CGM_STATUS_LOW,
     CGM_STATUS_MAP,
     DEVICE_PUMP_MANUFACTURER,
     DEVICE_PUMP_MODEL,
@@ -666,6 +670,19 @@ class TandemCoordinator(DataUpdateCoordinator):
         for evt in pump_events:
             eid = evt.get("event_id")
             if eid in (EVT_CGM_DATA_GXB, EVT_CGM_DATA_G7, EVT_CGM_DATA_FSL2):
+                # Over-range gate (safety): when the CGM reports High/Low, the numeric
+                # value is not a valid reading — G7 (event 399) sends a large raw estimate
+                # (observed 400–1200 mg/dL at status=High), while G6 sends a ~0 sentinel.
+                # Clamp to the reportable bound at the source so the fabricated extreme
+                # never reaches the latest-glucose sensor OR the derived summary stats
+                # (avg / TIR / GMI / SG-delta all read glucose_mgdl). Mirrors how the
+                # physical sensor pegs and shows HIGH/LOW. Confirmed 2026-09-08 via a live
+                # event-399 probe. (ADR-008 fail-visible / null-not-guess.)
+                cgm_status_code = evt.get("status")
+                if cgm_status_code == CGM_STATUS_HIGH:
+                    evt["glucose_mgdl"] = CGM_GLUCOSE_MGDL_MAX
+                elif cgm_status_code == CGM_STATUS_LOW:
+                    evt["glucose_mgdl"] = CGM_GLUCOSE_MGDL_MIN
                 cgm_readings.append(evt)
             elif eid == EVT_BOLUS_COMPLETED:
                 bolus_completed.append(evt)
